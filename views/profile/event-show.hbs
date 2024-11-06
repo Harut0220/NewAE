@@ -35,7 +35,10 @@
         <div class="allEvBox">
           <div id="allEvBox_header">
             <h4>События</h4>
-            <p>Одобрено</p>
+            <p>
+                                {{#if (eq event.status 0)}}на модерации
+                    {{else}}Одобрено
+                    {{/if}}</p>
           </div>
 
           <hr />

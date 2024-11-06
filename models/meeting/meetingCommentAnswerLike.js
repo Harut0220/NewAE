@@ -5,7 +5,8 @@ const AnswerLikes = new Schema({
   user:{type: Schema.Types.ObjectId, ref: 'User' },
   commentId:{ type: Schema.Types.ObjectId, ref: 'meeting_comment' },
   answerId:{ type: Schema.Types.ObjectId, ref: 'meeting_comment_answer' },
-  date:{type:String}
+  date:{type:String,
+  required:true}
 }, {
   timestamps: true // This will add createdAt and updatedAt fields
 })

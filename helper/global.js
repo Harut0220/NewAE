@@ -8,6 +8,9 @@ ts.init()
 ts.separator = ";"
 
 const h = {
+  and: (a, b) =>{
+    return a && b;
+  },
   eventCategoryArraysOne:(array,idKey,nameKey,descriptionKey, avatarKey,map_avatarKey,statusKey, options)=> {
     if (!Array.isArray(array)) {
       return '';
@@ -76,7 +79,7 @@ const h = {
   // getValueMeet:(obj, key)=> {
   //   return obj[key];
   // },
-  optionsCompanyArrays: (array, valueKey, textKey,ownerKey,startKey,endKey,ratingKey,categoryKey,placeKey,likesKey,statusKey, options) => {
+  optionsCompanyArrays: (array, valueKey, textKey,ownerKey,startKey,endKey,ratingKey,categoryKey,placeKey,likesKey,statusKey,onlineKey, options) => {
     if (!Array.isArray(array)) {
         return '';
     }
@@ -93,8 +96,9 @@ const h = {
         const place_name=item[placeKey]
         const likes=item[likesKey]
         const status=item[statusKey]
+        const onlinePay=item[onlineKey]
         
-        return options.fn({ id, name, owner, startHour,endHour,rating,category,place_name,likes,status  });
+        return options.fn({ id, name, owner, startHour,endHour,rating,category,place_name,likes,status,onlinePay  });
     }).join('');
   },  
   optionsMeetingArrays:(array, valueKey, purposeKey,ownerKey,addressKey,openDateKey,openTimeKey,startDateKey,statusKey,likesKey,sitKey, options)=>{

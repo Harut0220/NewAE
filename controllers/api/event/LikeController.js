@@ -46,7 +46,7 @@ class LikeController{
 
     like = async (req,res) => {
         const authHeader = req.headers.authorization; 
-        if(authHeader&&authHeader!=="null"){
+        // if(authHeader&&authHeader!=="null"){
             const token =authHeader.split(' ')[1]
             const user = jwt.decode(token);
             // const user={id:"656ecb2e923c5a66768f4cd3"}
@@ -70,9 +70,9 @@ class LikeController{
             }
             
 
-        }else{
-          return  res.json({'status':'ERROR',"message":"unauthorized"})
-        }
+        // }else{
+        //   return  res.json({'status':'ERROR',"message":"unauthorized"})
+        // }
 
         // return res.json({'status':'ERROR'})
     }

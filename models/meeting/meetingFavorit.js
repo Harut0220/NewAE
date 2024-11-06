@@ -4,7 +4,8 @@ const { Schema,model } = mongoose;
 const MeetingFavorites = new Schema({
   userId: {type: Schema.Types.ObjectId, ref: 'User' },
   meetingId:{ type: Schema.Types.ObjectId, ref: 'Meeting' },
-  date:{type:String}
+  date:{type:String,
+  required:true}
 }, {
   timestamps: true // This will add createdAt and updatedAt fields
 })

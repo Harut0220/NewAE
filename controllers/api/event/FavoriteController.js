@@ -44,7 +44,7 @@ class FavoriteController{
 
     favorite = async (req,res) => {
         const authHeader = req.headers.authorization;
-        if(authHeader&&authHeader!=="null"){
+        // if(authHeader&&authHeader!=="null"){
             const token = authHeader.split(" ")[1];
         
             const user = jwt.decode(token);
@@ -72,9 +72,9 @@ class FavoriteController{
             }else{
                 return res.json({'status':'error',"message":"error"})
             }
-        }else{
-            return res.json({'status':'error',"message":"Unauthorized"})
-        }
+        // }else{
+        //     return res.json({'status':'error',"message":"Unauthorized"})
+        // }
 
 
 

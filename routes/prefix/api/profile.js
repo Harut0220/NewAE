@@ -3,10 +3,11 @@ import ProfileController from "../../../controllers/api/user/ProfileController.j
 import { empObj, empFiles, empAvatarFile} from "../../../middlewares/isEmpty.js";
 import { updatePhoneNumber, updatePhoneNumberConfirm, storeFavoriteCategory, notificationsList } from "../../../middlewares/validate/api/auth-validation.js";
 import { updateProfile } from "../../../middlewares/validate/api/auth-validation.js";
+import newAuthJWT from "../../../middlewares/newAuthJWT.js";
 
 const profileRoutes = Router()
 
-profileRoutes.get('/',ProfileController.index)
+profileRoutes.get('/',newAuthJWT,ProfileController.index)
 
 profileRoutes.put("/user/edit",ProfileController.userEdit)
 

@@ -17,6 +17,7 @@ import expressWs from "express-ws";
 import cors from "cors";
 import cron from "./cron/notification.js";
 import path from "path";
+// import moment from "moment";
 import ShareEventController from "./controllers/share/ShareEventController.js";
 // import mime from "mime";
 import { reportRoutes } from "./routes/report.js";
@@ -35,6 +36,7 @@ import reedRouter from "./routes/reed.js";
 import { dateNow } from "./config/timestamps.js";
 import moment from "moment";
 import { isEmpParamObjId } from "./middlewares/isEmpty.js";
+import newAuthJWT from "./middlewares/newAuthJWT.js";
 // Your code using multer here
 
 const __filename = fileURLToPath(import.meta.url);
@@ -95,7 +97,7 @@ app.get('/some-route', (req, res) => {
   res.render('someTemplate', { url: process.env.URL });
 });
 
-app.get("/test1", async (req, res) => {
+app.get("/test1",newAuthJWT, async (req, res) => {
   function getFormattedDate() {
     const date = new Date();
 
@@ -128,120 +130,79 @@ app.get("/test1", async (req, res) => {
   res.send(moscowTime);
 });
 
-/*
-app.use('/a',express.static('/b'));
-Above line would serve all files/folders inside of the 'b' directory
-And make them accessible through http://localhost:3000/a.
-*/
 
-// app.use(express.static(__dirname + "/public"));
 
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     const uploadDir = './uploads';
-//     // Create uploads directory if it doesn't exist
-//     if (!fs.existsSync(uploadDir)) {
-//       fs.mkdirSync(uploadDir);
-//     }
-//     cb(null, uploadDir);
-//   },
-//   filename: function (req, file, cb) {
-//     cb(null, Date.now() + '-' + file.originalname);
-//   }
-// });
 
-// const upload = multer({ storage: storage });
 
-// // Mocked UploadService for demonstration
-// const UploadService = {
-//   storeLowResImage: async (fileData) => {
-//     // Your logic to store low-resolution images
-//     // Return the path where the image is stored
-//     return '/path/to/low-res-image';
-//   },
-//   storeSync: async (file, dir) => {
-//     // Your logic to store file synchronously
-//     // Return the path where the file is stored
-//     console.log(file.filename,"file.filename");
-//     return `/uploads/${file.filename}`;
+//////////////////////////////////////////////////////////////
+// const event = {
+//   _id: "67208c314b6ae258392abdd3",
+//   purpose: "dwqwqqwd",
+//   description: "dwqdqwdwq",
+//   ticket: "www.limk.am",
+//   address: "Oshakan, Armenia",
+//   lat: 40.2654304,
+//   lon: 44.3099177,
+//   date: "2024-11-05T15:09:00",
+//   status: 1,
+// };
+
+// // Calculate notification time (1 hour before event)
+// const eventTime = moment.tz(event.date, "Asia/Yerevan");
+// const notificationTime = eventTime.clone().subtract(1, 'hours').toDate();
+// // const eventTime = moment(event.date);
+// // const notificationTime = eventTime.subtract(1, 'hours').toDate();
+// console.log("Notification time:", notificationTime);
+
+// // Function to send a push notification
+// function sendNotification() {
+//   const message = {
+//     notification: {
+//       title: "Event Reminder!",
+//       body: `The event is starting in 1 hour at ${event.address}. Don't miss it!`,
+//     },
+//     data: {
+//       eventId: event._id.toString(),
+//       ticketLink: event.ticket,
+//       eventTime: event.date
+//     },
+//     topic: "event_reminders"  // Replace with the topic or targeted user/device token
+//   };
+//   console.log("Notification message:", message);
+  
+
+//   // Send the notification
+//   admin.messaging().send(message)
+//     .then(response => {
+//       console.log("Notification sent successfully:", response);
+//     })
+//     .catch(error => {
+//       console.error("Error sending notification:", error);
+//     });
+// }
+
+// // Schedule notification
+// const scheduleNotification = () => {
+//   const now = new Date();
+//   const timeUntilNotification = notificationTime - now;
+
+//   if (timeUntilNotification > 0) {
+//     setTimeout(sendNotification, timeUntilNotification);
+//     console.log(`Notification scheduled for ${notificationTime}`);
+//   } else {
+//     console.log("The event time has already passed.");
 //   }
 // };
 
-// // Single file upload endpoint
-// app.post('/api/upload_single_file', upload.single('profile-file'), async function (req, res, next) {
-//   try {
-//     // Access the uploaded file
-//     const file = req.file;
-//     console.log(file,"file");
-//     if (!file) {
-//       return res.status(400).send('No file uploaded.');
-//     }
+// // Start the scheduling function
+// scheduleNotification();
 
-//     let path = '';
 
-//     if (file.mimetype && file.mimetype.includes('image')) {
-//       path = await UploadService.storeLowResImage(file.buffer);  // Use file.buffer for in-memory file data
-//     } else {
-//       path = await UploadService.storeSync(file, 'uploads');
-//     }
 
-//     console.log(path);
-//     return res.send({ path });
-//   } catch (error) {
-//     console.error('Error handling file upload:', error);
-//     return res.status(500).send('Internal server error');
-//   }
-// });
 
-// var storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     cb(null, './uploads')
-//   },
-//   filename: function (req, file, cb) {
-//     cb(null, file.originalname)
-//   }
-// })
-// var upload = multer({ storage: storage })
-// app.post('/api/upload_single_file', upload.single('profile-file'),async function (req, res, next) {
-//        const file = req.files.file;
-//        let path = '';
-// if(file.mimetype && file.mimetype.includes('image')){
-//     path = await UploadService.storeLowResImage(file.data);
-// }else{
-//     path = await UploadService.storeSync(file,'uploads');
-// }
-// console.log(path);
-// return res.send({path})
-// });
 
-// app.post('/profile-upload-multiple', upload.array('profile-files', 12), function (req, res, next) {
-// // req.files is array of `profile-files` files
-// // req.body will contain the text fields, if there were any
-// var response = '<a href="/">Home</a><br>'
-// response += "Files uploaded successfully.<br>"
-// for(var i=0;i<req.files.length;i++){
-// response += `<img src="${req.files[i].path}" /><br>`
-// }
+///////////////////////////////////////////////////////////////
 
-// return res.send(response)
-// })
-
-// app.post("/downloadFile", () => {
-//   saveImageToDisk(
-//     "file:///data/user/0/com.alleven/cache/rn_image_picker_lib_temp_f3879c23-61c7-43b6-b659-dee08b8471c3.jpg",
-//     `./` + `nkaredo` + ".png"
-//   )
-//     .then(() => {
-//       console.log("File downloaded successfully!");
-//     })
-//     .catch((error) => {
-//       console.error("Error downloading file:", error);
-//     });
-// });
-
-const time =new Date()
-
-// console.log(time.getUTCHours())
 
 const start = async () => {
   await connect();

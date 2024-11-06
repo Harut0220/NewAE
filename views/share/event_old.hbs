@@ -75,16 +75,16 @@
        
       </div>
     </div>
-     {{!-- <script src="/js/axios.js"></script>
+      <script src="/js/axios.js"></script>
+       
       <script>
-        console.log("{{ event }}")
-        const geoCordLatit = "{{ event.latit }}";
-        const geoCordLotit = "{{ event.longit }}";
+        const geoCordLatit = {{ event.latit }};
+        const geoCordLotit = {{ event.longit }};
         const geoPath = `https://api.geoapify.com/v1/geocode/reverse?lat=${geoCordLatit}&lon=${geoCordLotit}&apiKey=5d33a1ddd9db4ee8862f3de928c21e89`;
          axios.get(geoPath).then((d)=>{
           const al = document.getElementById('addressLine');
           al.innerHTML = d.data.features[0].properties.address_line2
         })
-      </script> --}}
+      </script> 
   </body>
 </html>

@@ -2,6 +2,31 @@ import { validator } from "../../../helper/validator.js";
 import EventCategory from "../../../models/event/EventCategory.js";
 import mongoose from "mongoose";
 
+
+const eventStore = async (req,res,next) => {
+    const validationRule = {
+        "name":"required|string",
+        // "description":"null|string",
+        "category":"required|string",
+        "started_time":"required",
+        "joinng_time":"required",
+        // "tickets_link":"null|string",
+        "latit":"required|string",
+        "longit":"required|string"
+    };
+    await validator(req.body, validationRule, {}, (err, status) => {
+        if (!status) {
+            return res.status(412)
+                .send({
+                    success: false,
+                    message: 'Validation failed',
+                    data: err
+                });
+        }
+        next()
+    }).catch( err => console.log(err))
+}
+
 const eventCategory = async (req,res,next) => {
     const validationRule = {
         "name": "required|string",
@@ -39,7 +64,7 @@ const event = async (req,res,next) => {
         // "description":"null|string",
         "category":"required|string",
         "started_time":"required",
-        "joinng_time":"required",
+        // "joinng_time":"required",
         // "tickets_link":"null|string",
         "latit":"required|string",
         "longit":"required|string"
@@ -90,12 +115,14 @@ const event = async (req,res,next) => {
                 });
         }
         next()
-    }).catch( err => console.log(err))
+    }).catch( (err) => {console.log(err)
+        res.status(500).send({success: false, message: 'Server error middleware'})
+    })
 }
 
 const likeDislike = async (req,res,next) => {
     const validationRule = {
-        "event_id":"required",
+        "id":"required",
     };
 
     await validator(req.body, validationRule, {}, (err, status) => {
@@ -113,7 +140,7 @@ const likeDislike = async (req,res,next) => {
 
 const rating = async (req,res,next) => {
     const validationRule = {
-        "event_id":"required",
+        "id":"required",
         "rating":"required|min:1|max:5",
     };
 
@@ -133,7 +160,7 @@ const rating = async (req,res,next) => {
 
 const comment = async (req,res,next) => {
     const validationRule = {
-        "event_id":"required",
+        "id":"required",
         "text":"required",
     };
 
@@ -153,7 +180,7 @@ const comment = async (req,res,next) => {
 
 const commentLike = async (req,res,next) => {
     const validationRule = {
-        "comment_id":"required",
+        "id":"required",
     };
 
     await validator(req.body, validationRule, {}, (err, status) => {
@@ -240,7 +267,7 @@ const ImpressionImage = async (req,res,next) => {
 
 const nearEvent = async (req,res,next) => {
     const validationRule = {
-        "max_distance":"required",
+        // "max_distance":"required",
         "latitude":"required",
         "longitude":"required",
     };
@@ -258,4 +285,4 @@ const nearEvent = async (req,res,next) => {
     }).catch( err => console.log(err))
 }
 
-export {eventCategory,event,likeDislike,rating,comment,commentLike,ImpressionImage,userImpression,nearEvent};
+export {eventStore,eventCategory,event,likeDislike,rating,comment,commentLike,ImpressionImage,userImpression,nearEvent};

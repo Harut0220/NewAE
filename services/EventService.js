@@ -202,22 +202,16 @@ class EventService {
 
   store = async (data, userId) => {
     const d = data.body;
-    console.log(d,"d");
-    console.log(d.latit,"d.latit");
-    console.log(d.longit,"d.longit");
     
     
     
     d.owner = userId;
-    console.log("d.started_time1: ", d.started_time);
 
-    console.log("d.started_time2: ", d.started_time);
     if (d.latit && d.longit) {
-      const lat=Number(d.latit);
-      const lng=Number(d.longit);
+
       const pLoc = {
         type: "Point",
-        coordinates: [lat,lng],
+        coordinates: [Number(d.latit),Number(d.longit)],
       };
 
       d.location = pLoc;

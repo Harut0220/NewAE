@@ -23,6 +23,46 @@ import companyCommentAnswer from "../models/company/companyCommentAnswer.js";
 import CommentAnswerLikes from "../models/company/companyCommentAnswerLike.js";
 import UserService from "./UserService.js";
 const companyService = {
+  commentDelete: async (id) => {
+    try {
+      const commentDb = await companyComment.findById(id);
+    await commentDb.remove();
+    const commentAnswerDb = await companyCommentAnswer.find({ commentId: id });
+    await commentAnswerDb.remove();
+    const commentLikesDb = await CompanyCommentLikes.find({ commentId: id });
+    await commentLikesDb.remove();
+    const commentAnswerLikesDb = await CommentAnswerLikes.find({
+      answerId: commentAnswerDb[0]._id,
+    });
+    await commentAnswerLikesDb.remove();
+    const meetingDb = await Company.findByIdAndUpdate(
+      commentDb.companyId,
+      { $pull: { comments: commentDb._id } }
+    );
+      return ({
+        success: true,
+        message: "Successfully deleted",});
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+  },
+  commentAnswerDelete: async (id) => {
+    try {
+      await CommentAnswerLikes.deleteMany({ answerId: id });
+      await companyCommentAnswer.findByIdAndDelete(id);
+      await companyComment.findByIdAndUpdate(
+        id,
+        { $pull: { answers: id } }
+      )
+      return ({
+        success: true,
+        message: "Successfully deleted",});
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+  },
   onlinePage: async () => {
     try {
       const companies = await Company.find({status: 1, onlinePay: true });
@@ -81,7 +121,7 @@ const companyService = {
         status: 2,
         date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss"),
         user: userId,
-        type: "Новая услуга",
+        type: "Онлайн оплата",
         message: `Ваше событие ${company.companyName} находится на модерации`,
         categoryIcon: "db.images[0]",
         event: company._id,
@@ -116,7 +156,7 @@ const companyService = {
         "send",
         "ADMIN",
         JSON.stringify({
-          type: "Новая услуга",
+          type: "Онлайн оплата",
           message: "event",
           data: company,
         })
@@ -207,6 +247,231 @@ const companyService = {
     } catch (error) {
       console.log(error);
       return false;
+    }
+  },
+  onlineReject: async (id,status) => {
+    try {
+      const companyDb = await Company.findById(id)
+        .populate("owner")
+        .populate("category")
+        .populate("images")
+        .populate("services")
+        .populate("phoneNumbers");
+      companyDb.onlinePay = false;
+      companyDb.onlineReason = status;
+      await companyDb.save();
+      const userDb = await User.find(companyDb.owner);
+      const store = async (data) => {
+        let ex_notif_type = false;
+        if (data.user && data.type) {
+          const findAndLean = async (id) => {
+            return await User.findById(id)
+              .select(["-password", "-block", "-fcm_token"])
+              .populate([
+                "event_categories",
+                // "roles",
+                "event_favorite_categories",
+                "list_of_notifications",
+                // {
+                // path: "companys",
+                // options: { sort: { createdAt: "desc" } },
+                // populate: [
+                //   "images",
+                //   // {
+                //   //   path: "category",
+                //   //   select: {
+                //   //     name: 1,
+                //   //     description: 1,
+                //   //     status: 1,
+                //   //     createdAt: 1,
+                //   //     updaedAt: 1,
+                //   //     avatar: 1,
+                //   //     map_avatar: 1,
+                //   //     categoryIcon: "$avatar",
+                //   //   },
+                //   // },
+                //   // {
+                //   //   path: "favorites",
+                //   //   options: { sort: { createdAt: "desc" } },
+                //   //   select: [
+                //   //     "name",
+                //   //     "surname",
+                //   //     "email",
+                //   //     "phone_number",
+                //   //     "avatar",
+                //   //   ],
+                //   // },
+                //   // {
+                //   //   path: "likes",
+                //   //   options: { sort: { createdAt: "desc" } },
+                //   //   select: [
+                //   //     "name",
+                //   //     "surname",
+                //   //     "email",
+                //   //     "phone_number",
+                //   //     "avatar",
+                //   //   ],
+                //   // },
+                //   // {
+                //   //   path: "visits",
+                //   //   options: { sort: { createdAt: "desc" } },
+                //   //   select: [
+                //   //     "name",
+                //   //     "surname",
+                //   //     "email",
+                //   //     "phone_number",
+                //   //     "avatar",
+                //   //   ],
+                //   // },
+                //   // {
+                //   //   path: "in_place",
+                //   //   options: { sort: { createdAt: "desc" } },
+                //   //   select: [
+                //   //     "name",
+                //   //     "surname",
+                //   //     "email",
+                //   //     "phone_number",
+                //   //     "avatar",
+                //   //   ],
+                //   // },
+                // ],
+                // },
+                // {
+                //   path: "event_in_place",
+                //   options: { sort: { createdAt: "desc" } },
+                //   populate: [
+                //     "images",
+                //     {
+                //       path: "category",
+                //       select: {
+                //         name: 1,
+                //         description: 1,
+                //         status: 1,
+                //         createdAt: 1,
+                //         updaedAt: 1,
+                //         avatar: 1,
+                //         map_avatar: 1,
+                //         categoryIcon: "$avatar",
+                //       },
+                //     },
+                //     // {
+                //     //   path: "favorites",
+                //     //   options: { sort: { createdAt: "desc" } },
+                //     //   select: [
+                //     //     "name",
+                //     //     "surname",
+                //     //     "email",
+                //     //     "phone_number",
+                //     //     "avatar",
+                //     //   ],
+                //     // },
+                //     // {
+                //     //   path: "likes",
+                //     //   options: { sort: { createdAt: "desc" } },
+                //     //   select: [
+                //     //     "name",
+                //     //     "surname",
+                //     //     "email",
+                //     //     "phone_number",
+                //     //     "avatar",
+                //     //   ],
+                //     // },
+                //     // {
+                //     //   path: "visits",
+                //     //   options: { sort: { createdAt: "desc" } },
+                //     //   select: [
+                //     //     "name",
+                //     //     "surname",
+                //     //     "email",
+                //     //     "phone_number",
+                //     //     "avatar",
+                //     //   ],
+                //     // },
+                //     // {
+                //     //   path: "in_place",
+                //     //   options: { sort: { createdAt: "desc" } },
+                //     //   select: [
+                //     //     "name",
+                //     //     "surname",
+                //     //     "email",
+                //     //     "phone_number",
+                //     //     "avatar",
+                //     //   ],
+                //     // },
+                //   ],
+                // },
+              ])
+              .lean();
+          };
+          const user = await findAndLean(data.user);
+          if (
+            user &&
+            user.list_of_notifications &&
+            user.list_of_notifications.length
+          ) {
+            for (let l = 0; l < user.list_of_notifications.length; l++) {
+              if (data.notif_type == user.list_of_notifications[l].name) {
+                ex_notif_type = true;
+                break;
+              }
+            }
+          }
+        }
+        const getNotificatationListByName = async (name) => {
+          return await NotificatationList.findOne({ name });
+        };
+        const notificationLists = await getNotificatationListByName(data.type);
+
+        if (!ex_notif_type && notificationLists) {
+          return 1;
+        }
+
+        let roles = await Role.find({ name: data.sent }, { _id: 1 });
+        data.sent = roles;
+        return await Notification.create(data);
+      };
+
+      const evLink = `alleven://eventDetail/${companyDb._id}`;
+      await store({
+        status: 2,
+        date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+        user: userDb.id,
+        type: "Новая услуга",
+        message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}`,
+        categoryIcon: "db.images[0]",
+        event: companyDb._id,
+        link: evLink,
+      });
+
+      if (userDb.notifCompany) {
+        console.log("notif send user");
+
+        notifEvent.emit(
+          "send",
+          userDb._id.toString(),
+          JSON.stringify({
+            type: "Новая услуга",
+            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+            message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}`,
+            link: evLink,
+          })
+        );
+      }
+
+      // const pushInCollection = async (user_id, col_id, col_name) => {
+      //   let user = await User.findById(user_id);
+      //   user[col_name].push(col_id);
+      //   user.last_event_date = moment().format("YYYY-MM-DDTHH:mm");
+      //   await user.save();
+      //   return 1;
+      // };
+
+      // await pushInCollection(userDb.id, companyDb._id, "services");
+      // console.log(companyDb,"companyDb");
+      
+      return companyDb;
+    } catch (error) {
+      console.error(error);
     }
   },
   reject: async (id, status) => {
@@ -408,7 +673,7 @@ const companyService = {
 
         notifEvent.emit(
           "send",
-          userDb._id,
+          userDb._id.toString(),
           JSON.stringify({
             type: "Новая услуга",
             date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
@@ -432,6 +697,12 @@ const companyService = {
       console.error(error);
     }
   },
+  onlineResolve: async (id) => {
+    const company = await Company.findById(id);
+    company.onlinePay = true;
+    await company.save();
+    return { message: "заявка одобрена" };
+  },
   resolve: async (id) => {
     const company = await Company.findById(id);
     company.status = 1;
@@ -453,7 +724,6 @@ const companyService = {
         session.startTransaction();
 
         try {
-          // Create Company
           const company = new Company({
             category: mongoose.Types.ObjectId(data.category),
             companyName: companyName,
@@ -471,7 +741,6 @@ const companyService = {
           });
           await company.save({ session });
 
-          // Create and save images
           const imagePromises = data.images.map(async (url) => {
             const image = new companyImage({
               url,
@@ -484,7 +753,6 @@ const companyService = {
           });
           const images = await Promise.all(imagePromises);
 
-          // Create and save phone numbers
           const phonePromises = data.phoneNumbers.map(async (phoneData) => {
             const phone = new companyPhones({
               number: phoneData.value,
@@ -496,7 +764,6 @@ const companyService = {
           });
           const phoneNumbers = await Promise.all(phonePromises);
 
-          // Create and save services
           const servicePromises = data.services.map(async (serviceData) => {
             const service = new CompanyServiceModel({
               type: serviceData.type,
@@ -514,7 +781,6 @@ const companyService = {
 
 
 
-          // Update Company with references to newly created documents
           company.images = images.map((image) => image._id);
           company.phoneNumbers = phoneNumbers.map((phone) => phone._id);
           company.services = services.map((service) => service._id);
@@ -528,6 +794,7 @@ const companyService = {
           session.endSession();
 
           console.log("Company and related data added successfully!");
+          return company;
         } catch (error) {
           console.error("Error adding company data:", error);
           if (session) {
@@ -611,7 +878,6 @@ const companyService = {
 
       // await companyServiceMod.save()
 
-      // console.log(company);
       return { message: "service added" };
     } catch (error) {
       console.error(error);
@@ -639,7 +905,6 @@ const companyService = {
         const latRad2 = (lat2 * Math.PI) / 180;
         const lonRad2 = (lon2 * Math.PI) / 180;
 
-        // Haversine formula
         const dLat = latRad2 - latRad1;
         const dLon = lonRad2 - lonRad1;
         const a =
@@ -663,6 +928,87 @@ const companyService = {
       });
 
       companies.sort((a, b) => a.kilometr - b.kilometr);
+
+      let pastLikes;
+      let pastComment;
+      let view;
+      let favorites;
+      let pastParticipants;
+      let countAll = 0;
+      for (let i = 0; i < companies.length; i++) {
+        pastLikes = companies[i].likes.filter((like) => {
+          const parsedGivenDate = moment(like.date);
+
+
+
+          return parsedGivenDate.isAfter(companies[i].changedStatusDate);
+        });
+
+        pastComment = companies[i].comments.filter((like) => {
+          const parsedGivenDate = moment(like.date);
+
+          return parsedGivenDate.isAfter(companies[i].changedStatusDate);
+        });
+
+        view = resDb[i].view.filter((like) => {
+          const parsedGivenDate = moment(like.date);
+
+          return parsedGivenDate.isAfter(companies[i].changedStatusDate);
+        });
+
+        favorites = companies[i].favorites.filter((like) => {
+          const parsedGivenDate = moment(like.date);
+
+          return parsedGivenDate.isAfter(companies[i].changedStatusDate);
+        });
+
+        pastParticipants = companies[i].participants.filter((like) => {
+          const parsedGivenDate = moment(like.date);
+
+          return parsedGivenDate.isAfter(resDb[i].changedStatusDate);
+        });
+
+        let count =
+          pastLikes.length +
+          pastComment.length +
+          view.length +
+          pastParticipants.length +
+          favorites.length;
+        countAll = countAll + count;
+        if (favorites.length) {
+          companies[i].changes.favorites = true;
+        }
+        if (pastLikes.length) {
+          companies[i].changes.like = true;
+        }
+        if (pastComment.length) {
+          companies[i].changes.comment = true;
+        }
+        if (pastParticipants.length) {
+          companies[i].changes.participant = true;
+        }
+        if (view.length) {
+          companies[i].changes.view = true;
+        }
+        if (count) {
+          companies[i].changes.count = count;
+        }
+        await resDb[i].save();
+      }
+      const dateChange=await Company.find({ owner: userId });
+       setTimeout(async () => {
+        for (let x = 0; x < dateChange.length; x++) {
+          dateChange[x].changes.comment = false;
+          dateChange[x].changes.like = false;
+          dateChange[x].changes.participant = false;
+          dateChange[x].changes.view = false;
+          dateChange[x].changes.favorites = false;
+          dateChange[x].changes.count = 0;
+          dateChange[x].changedStatusDate = moment.tz(process.env.TZ).format();
+          await dateChange[x].save();
+        }
+      })
+
       return companies;
     } catch (error) {
       console.error(error);

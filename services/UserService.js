@@ -302,11 +302,14 @@ class UserService {
   };
 
   findAndLeanCompany = async (id) => {
+    console.log(id, "findAndLeanCompany,id");
+    console.log("findAndLeanCompany");
+    
     return await User.findById(id)
       .select(["-password", "-block", "-fcm_token"])
       .populate([
         "list_of_notifications",
-        "company_favorite_categories",
+        // "company_favorite_categories",
         "roles",
       ]);
   };

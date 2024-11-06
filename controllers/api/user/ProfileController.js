@@ -29,8 +29,9 @@ class ProfileController{
      const token = authHeader.split(' ')[1];
 
       const user = jwt.decode(token);
-
-       let u = await User.findById({_id:user.id}).populate("roles")
+        console.log(authHeader,"authHeader");
+        
+       let u = await User.findById(user.id).populate("roles")
         if (u) {
             return res.status(200).send({success:true,"data":u})
         }else{

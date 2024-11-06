@@ -6,14 +6,19 @@ import { isEmpParamObjId } from "../../../middlewares/isEmpty.js";
 const companyAdminRouter=Router()
 
 companyAdminRouter.get("/single/:id",isEmpParamObjId, EventController.singleCompany);
-companyAdminRouter.get("/single/pay/:id",isEmpParamObjId, companyController.singlePay);
+companyAdminRouter.get("/online/single/:id",isEmpParamObjId, companyController.OnlineSingleCompany);
+// companyAdminRouter.get("/single/pay/:id",isEmpParamObjId, companyController.singlePay);
 companyAdminRouter.get("/show/:id",isEmpParamObjId, EventController.companyShow);
 companyAdminRouter.post("/destroy/many", EventController.destroyCompany);//must be DELETE
 companyAdminRouter.delete("/image/:id",isEmpParamObjId, EventController.destroyCompanyImage);
 companyAdminRouter.post("/resolve/:id",isEmpParamObjId, companyController.resolve);
 companyAdminRouter.get("/resolve/:id",isEmpParamObjId, companyController.resolve);
+companyAdminRouter.post("/online/resolve/:id",isEmpParamObjId, companyController.OnlineResolve);
+companyAdminRouter.get("/online/resolve/:id",isEmpParamObjId, companyController.OnlineResolve);
 companyAdminRouter.post("/reject/:id",isEmpParamObjId,companyController.reject)
 companyAdminRouter.get("/reject/:id",isEmpParamObjId,companyController.reject)
+companyAdminRouter.post("/online/reject/:id",isEmpParamObjId,companyController.OnlineReject)
+companyAdminRouter.get("/online/reject/:id",isEmpParamObjId,companyController.OnlineReject)
 companyAdminRouter.get("/online",companyController.onlinePage);
 
 companyAdminRouter.get("/page",companyController.index);

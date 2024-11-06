@@ -22,6 +22,7 @@ import ReportController from "../controllers/report/ReportController.js";
 import companyRouter from "./prefix/api/company.js";
 import meetingRouter from "./prefix/api/meeting.js";
 import serviceRouter from "./prefix/api/service.js";
+import newAuthJWT from "../middlewares/newAuthJWT.js";
 
 const apiRoutes = Router();
 
@@ -44,36 +45,38 @@ apiRoutes.get('/login',AuthController.login);
 //signin,
 apiRoutes.post('/login',signin,AuthController.signIn);
 //authenticateJWT,
-apiRoutes.post('/logout',AuthController.logout);
+apiRoutes.post('/logout',newAuthJWT,AuthController.logout);
 
 apiRoutes.post('/password/reset',passwordReset,AuthController.passwordReset);
 apiRoutes.post('/password/reset/confirm',passwordResetConfirm,AuthController.passwordResetConfirm);
 apiRoutes.post('/password/reset/new',passwordResetNewPass,AuthController.passwordResetNewPass);
 
 
-apiRoutes.get("/user/notif/status",NotificationController.opportunity)
+apiRoutes.get("/user/notif/status",newAuthJWT,NotificationController.opportunity)
 apiRoutes.use('/event',eventRoutes);
 apiRoutes.use("/company",companyRouter);
 apiRoutes.use("/service",serviceRouter);
 apiRoutes.use('/meeting',meetingRouter);
 
-
+//authenticateJWT,
+//
 apiRoutes.route('/document')
 .get(authenticateJWT,DocumentController.get)
-.post(store,authenticateJWT,DocumentController.store)
+.post(authenticateJWT,store,DocumentController.store)
 
 apiRoutes.get("/get/documents",DocumentController.getDocuments)
 apiRoutes.get("/get/documents/global",DocumentController.getDocumentsGlobal)
 //authenticateJWT,
 //authenticateJWT,
 apiRoutes.route('/feedback')
-.get(FeedbackController.index)
-.post(FeedbackController.store)
-
+.get(authenticateJWT,FeedbackController.index)
+.post(authenticateJWT,FeedbackController.store)
+//authenticateJWT,
+//authenticateJWT,
 apiRoutes.route('/notifications')
 .get(authenticateJWT,NotificationController.index)
 .delete(authenticateJWT,NotificationController.read)
-
+//authenticateJWT,
 apiRoutes.delete('/notification/destroy/:id',authenticateJWT,NotificationController.destroyOne);
 
 
@@ -83,8 +86,8 @@ apiRoutes.route('/upload_multi_file').post(storeMulti,FileUploadController.store
 
 
 
-// authenticateJWT,
-apiRoutes.use('/profile',profileRoutes)
+
+apiRoutes.use('/profile',authenticateJWT,profileRoutes)
 
 apiRoutes.post('/report',storeReport,ReportController.mobileStore);
 

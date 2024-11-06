@@ -9,7 +9,7 @@ class NotificationController{
 
     opportunity=async (req,res)=>{
         const authHeader = req.headers.authorization;
-        if(authHeader&&authHeader!=="null"){
+        // if(authHeader&&authHeader!=="null"){
             const token = authHeader.split(" ")[1];
     
             const user = jwt.decode(token);
@@ -19,9 +19,9 @@ class NotificationController{
     
         
             return res.status(200).send({message:"success",eventNotif:userDb.notifEvent,companyNotif:userDb.notifCompany,meetingNotif:userDb.notifMeeting,hotOfferNotif:userDb.notifHotOffer,})
-        }else{
-            return res.status(403).send({message:"Unauthorized"})
-        }
+        // }else{
+        //     return res.status(403).send({message:"Unauthorized"})
+        // }
     
 
     

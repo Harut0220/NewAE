@@ -9,7 +9,7 @@ const Notification = new Schema({
     },
     type:{
         type: String,
-        enum:['system','general','advertising','confirm_come','feedback','message', 'create_new','Новая события','Новая услуга','Новая встреча'],
+        enum:['system','general','advertising','confirm_come','feedback','message', 'create_new','Новая события','Новая услуга','Новая встреча','Онлайн оплата'],
         default:'system'
 
     },

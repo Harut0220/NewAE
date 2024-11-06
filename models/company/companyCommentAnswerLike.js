@@ -4,7 +4,8 @@ const { Schema,model } = mongoose;
 const CommentAnswerLikes = new Schema({
   user:{type: Schema.Types.ObjectId, ref: 'User' },
   answerId:{ type: Schema.Types.ObjectId, ref: 'company_comment_answer' },
-  date:{type:String}
+  date:{type:String,
+  required:true}
 }, {
   timestamps: true // This will add createdAt and updatedAt fields
 })

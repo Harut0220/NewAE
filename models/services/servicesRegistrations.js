@@ -6,8 +6,8 @@ const servicesRegistrations = new Schema({
     date:{type:String,require:true},
     status:{type:Number,default:0},
     userId:{ type: Schema.Types.ObjectId, ref: "User" },
-    text:{type:String},
-    time:{type:String}
+    text:{type:String,require:true},
+    time:{type:String,require:true}
 }, {
     timestamps: true // This will add createdAt and updatedAt fields
   })

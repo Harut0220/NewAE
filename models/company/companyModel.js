@@ -7,11 +7,11 @@ const Company = new Schema(
   {
     category: { type: Schema.Types.ObjectId, ref: "company_category" },
     owner: { type: Schema.Types.ObjectId, ref: "User" },
-    companyName: { type: String },
-    web: { type: String },
+    companyName: { type: String ,default:"" },
+    web: { type: String,default:"" },
     coords: {
-      latit: { type: Number },
-      longit: { type: Number },
+      latit: { type: Number ,required:true},
+      longit: { type: Number, required: true },
     },
     ratings: [
       {
@@ -22,13 +22,13 @@ const Company = new Schema(
     comments: [{ type: Schema.Types.ObjectId, ref: "company_comment" }],
     status: { type: Number, default: 0 },
     kilometr: { type: Number, default: 0 },
-    place_name: { type: String, default: null },
+    place_name: { type: String, default: "" },
     images: [{ type: Schema.Types.ObjectId, ref: "company_image" }],
     phoneNumbers: [{ type: Schema.Types.ObjectId, ref: "company_phone" }],
-    email: { type: String },
-    startHour: { type: String },
-    endHour: { type: String },
-    days: { type: String },
+    email: { type: String ,default:"" },
+    startHour: { type: String,default:"" },
+    endHour: { type: String ,default:"" },
+    days: { type: String,default:"" },
     onlinePay:{type:Boolean,default:false},
     services: [{ type: Schema.Types.ObjectId, ref: "company_service" }],
     favorites: [{ type: Schema.Types.ObjectId, ref: "company_favorites" }],
@@ -52,6 +52,7 @@ const Company = new Schema(
       favorites: { type: Boolean, default: false },
       count: { type: Number, default: 0 },
     },
+    onlineReason: { type: String, default: "null" },
   },
   {
     timestamps: true, // This will add createdAt and updatedAt fields

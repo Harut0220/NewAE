@@ -75,25 +75,43 @@
                     {{#if meetings}}
                       {{#optionsMeetingArrays meetings "_id" "purpose" "userId" "address" "openDate" "openTime" "date"  "status" "likes" "situation"}}
                          <tr>
-                          <td class="td">
+                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>
                               <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{id}}">
                           </td>
-                          <td class="td">{{purpose}}</td>
-                          <td class="td">{{getValue owner "name"}} {{getValue owner "surname"}}</td>
-                          <td class="td">
+                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{purpose}}</td>
+                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{getValue owner "name"}} {{getValue owner "surname"}}</td>
+                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>
                             {{#if (eq situation "passed")}}Завершено
                             {{else if (eq status 0)}}Запланированое
                             {{else if (eq status 1)}}Одобрено
                             {{else}}Отклонено
                             {{/if}}
                             </td>
-                          <td class="td"><a href="/admin/profile/meeting/participants/{{id}}" style="display: flex;align-items: center;justify-content: center;color:black">Участники</a></td>
+                          <td class="td" ><a href="/admin/profile/meeting/participants/{{id}}" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}} style="display: flex;align-items: center;justify-content: center;">Участники</a></td>
                           {{!-- <td class="td">{{lng situation "ru"}}</td> --}}
                           {{!-- <td class="td">{{openDate}}-{{openTime}}</td> --}}
-                          <td class="td">{{startDate}}</td>
-                          <td class="td">{{address}}</td>
-                          <td class="td"><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
-                          <td class="td" style="text-align:center;">
+                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{startDate}}</td>
+                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{address}}</td>
+                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
+                          <td class="td" style="text-align:center;" {{#if (and (eq status 0) (eq situation "passed"))}}
+  style="color: red;"
+{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>
                             {{#if (notEq situation "passed") }}
                               <a href="/admin/profile/meet/single/{{id}}" style="display: flex;align-items: center;justify-content: center;">
                                   <img src="/images/staticimg/Vector1(1).svg" style="width: 15px; height: 16px; cursor: pointer;">

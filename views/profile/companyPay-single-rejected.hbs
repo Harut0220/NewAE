@@ -20,6 +20,8 @@
         <p><a href="/">Главная</a>
           &gt;
           <a href="/admin/profile/events">Услугa</a>
+          &gt;
+          <a id="changeNavText">Все Услуги</a></p>
       </div>
       {{! <div id="eventHeadSecondPart" onclick="toggleModal('filter','flex')">
               Фильтр
@@ -31,7 +33,7 @@
         <div id="allEvBox_header">
           <h4>Услугa</h4>
           <form
-            action="/admin/profile/company/resolve/{{getValue event "_id"}}"
+            action="/admin/profile/company/online/resolve/{{getValue event "_id"}}"
             method="GET"
           >
             <input name="status" hidden value="1" />
@@ -93,10 +95,10 @@
             <p class="boxP boxPflex">
               <span>Место прохождения:</span>
               <a id="addressLine">{{getValue event "place_name"}}</a>
-               {{!-- <img
+              {{! <img
                 src="/images/pics/locationIcon.svg"
                 style="cursor: pointer"
-              /> --}}
+              /> }}
             </p>
             <p></p>
             <p class="boxP">
@@ -115,7 +117,7 @@
       <div class="allEvBox">
         <p id="deniedP">Причина отклонения Услугa</p>
         <hr />
-        <div id="fillResponseMessage">{{rejectMessage}}</div>
+        <div id="fillResponseMessage">{{onlineReason}}</div>
       </div>
     </div>
   </div>

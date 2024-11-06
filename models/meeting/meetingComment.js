@@ -4,8 +4,10 @@ const { Schema,model } = mongoose;
 const MeetingComment = new Schema({
   userId:{type: Schema.Types.ObjectId, ref: 'User' },
   meetingId:{ type: Schema.Types.ObjectId, ref: 'Meeting' },
-  text: {type:String},
-  date:{type:String},
+  text: {type:String,
+  required:true},
+  date:{type:String,
+  required:true},
   likes:[{type:Schema.Types.ObjectId,ref:"meetingComment_likes"}],
   answer:[{type:Schema.Types.ObjectId,ref:"meeting_comment_answer"}],
   isLike:{type:Boolean,default:false}

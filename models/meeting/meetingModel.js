@@ -4,7 +4,7 @@ const { Schema, model } = mongoose;
 const Meeting = new Schema(
   {
     purpose: { type: String, required: true },
-    description: { type: String },
+    description: { type: String ,default:"" },
     ticket: { type: String, default: null },
     address: { type: String, require: true },
     lon: { type: Number, required: true },

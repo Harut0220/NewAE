@@ -218,7 +218,6 @@ class AuthController {
       
       return res.send({message: "Вы вышли из системы" });
     }
-    console.log("chpetqa mtni");
   };
 
   signupConfirmPhoneCode = async (req, res) => {

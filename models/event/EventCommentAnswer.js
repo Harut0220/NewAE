@@ -4,8 +4,9 @@ const { Schema,model } = mongoose;
 const EventCommentAnswer = new Schema({
   userId:{type: Schema.Types.ObjectId, ref: 'User' },
   commentId:{ type: Schema.Types.ObjectId, ref: 'event_comment' },
-  text: {type:String},
-  date:{type:String},
+  text: {type:String,
+  required:true},
+  date:{type:String,  required:true},
   likes:[{type:Schema.Types.ObjectId,ref:"event_answer_likes"}],
   isLike:{type:Boolean,default:false}
 }, {

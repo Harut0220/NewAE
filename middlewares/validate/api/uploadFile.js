@@ -14,9 +14,7 @@ export const storeOne = async (req,res,next) => {
 
 export const storeMulti = async (req,res,next) => {
     if(req.files && req.files.file && req.files.file.length){
-        console.log(req.files,"req.files");
-        console.log(req.files.file,"req.files.file");
-        console.log(req.files.file.length,"req.files.file.length");
+
         
         
         

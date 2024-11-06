@@ -18,6 +18,8 @@ function genRoute(data) {
       return `/admin/profile/notification/feedback?q=${data.data._id}`;
     case "Подтвердил документ":
       return "/admin/profile/documents/subscribed-users";
+    case "Онлайн оплата":
+      return `/admin/profile/company/online/single/${data.data._id}`;
     case "Новая услуга":
       return `/admin/profile/company/single/${data.data._id}`;
     case "Новая встреча":

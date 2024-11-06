@@ -31,7 +31,7 @@ class EventController {
   myParticipant = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (authHeader&&authHeader!=="null") {
+      // if (authHeader&&authHeader!=="null") {
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
         // const userId = user.id;
@@ -137,9 +137,9 @@ class EventController {
         data.passed = upcomPass.passed;
 
         return res.status(200).send({ message: "success", data });
-      } else {
-        return res.status(401).send({ message: "Unauthorized" });
-      }
+      // } else {
+      //   return res.status(401).send({ message: "Unauthorized" });
+      // }
     } catch (error) {
       console.error(error);
       return res.status(500).send({ message: "Internal server error" });
@@ -365,10 +365,18 @@ class EventController {
 
   index = async (req, res) => {
     let userRole = "USER";
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+    // if (authHeader) {
 
-    if (req.user) {
-      userRole = await this.UserService.getRoleByUserId(req.user.id);
-    }
+      if (user.id) {
+        userRole = await this.UserService.getRoleByUserId(user.id);
+      }
+    // }
+    // if (req.user) {
+    //   userRole = await this.UserService.getRoleByUserId(req.user.id);
+    // }
 
     const params = {};
     const { category, situation, dateFrom, dateTo } = req.query;
@@ -394,7 +402,7 @@ class EventController {
       params.situation = situation;
     }
     if (userRole == "USER") {
-      params.owner = req.user.id;
+      params.owner = user.id;
     } else {
       params.status = 1;
     }
@@ -468,7 +476,7 @@ class EventController {
   store = async (req, res) => {
     const authHeader = req.headers.authorization;
 
-    if (authHeader&&authHeader!=="null") {
+    // if (authHeader&&authHeader!=="null") {
       const token = authHeader.split(" ")[1];
       const user = jwt.decode(token);
       let event = await this.EventService.store(req, user.id);
@@ -482,9 +490,9 @@ class EventController {
         })
       );
       return res.json({ status: "success", data: event });
-    } else {
-      return res.json({ status: "success", data: "Unauthorized" });
-    }
+    // } else {
+    //   return res.json({ status: "success", data: "Unauthorized" });
+    // }
   };
 
   edit = async (req, res) => {
@@ -816,165 +824,177 @@ class EventController {
   };
 
   eventImpressions = async (req, res) => {
-    const { event_id } = req.query;
-    let events = [];
-    if (req.user.role_name === "USER") {
-      events = await this.EventService.findVisitorImpressions(req.user.id);
-    } else {
-      events = await this.EventService.findOwnerImpressions(req.user.id);
+    try {
+      const { event_id } = req.query;
+      let events = [];
+      if (req.user.role_name === "USER") {
+        events = await this.EventService.findVisitorImpressions(req.user.id);
+      } else {
+        events = await this.EventService.findOwnerImpressions(req.user.id);
+      }
+  
+      for (const event of events) {
+        if (!isNaN(+event.status)) {
+          event._doc.eventStatus = +event.status;
+          delete event._doc.status;
+        }
+      }
+      return res.json({ status: "success", data: events });
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({ message: "Server error" });
     }
 
-    for (const event of events) {
-      if (!isNaN(+event.status)) {
-        event._doc.eventStatus = +event.status;
-        delete event._doc.status;
-      }
-    }
-    return res.json({ status: "success", data: events });
   };
 
   allEvent = async (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader&&authHeader!=="null") {
-      const token = authHeader.split(" ")[1];
-
-      const user = jwt.decode(token);
-      const result = await Event.find({
-        owner: { $ne: user.id },
-        status: 1,
-      }).populate({ path: "category", select: "avatar name map_avatar" });
-      function separateUpcomingAndPassed(events) {
-        const now = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
-        const upcoming = [];
-        const passed = [];
-
-        events.forEach((event) => {
-          // const eventDate = new Date(event.started_time);
-          if (event.started_time > now) {
-            upcoming.push(event);
-          } else {
-            passed.push(event);
-          }
-        });
-
-        return { upcoming, passed };
-      }
-      const separatedEvents = separateUpcomingAndPassed(result);
-      if (separatedEvents.passed.length > 0) {
-        for (let i = 0; i < separatedEvents.passed.length; i++) {
-          await Event.findByIdAndUpdate(separatedEvents.passed[i]._id, {
-            situation: "passed",
+    try {
+      const authHeader = req.headers.authorization;
+      if (authHeader&&authHeader!=="null") {
+        const token = authHeader.split(" ")[1];
+  
+        const user = jwt.decode(token);
+        const result = await Event.find({
+          owner: { $ne: user.id },
+          status: 1,
+        }).populate({ path: "category", select: "avatar name map_avatar" });
+        function separateUpcomingAndPassed(events) {
+          const now = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+          const upcoming = [];
+          const passed = [];
+  
+          events.forEach((event) => {
+            // const eventDate = new Date(event.started_time);
+            if (event.started_time > now) {
+              upcoming.push(event);
+            } else {
+              passed.push(event);
+            }
           });
+  
+          return { upcoming, passed };
         }
-      }
-      function calculateDistance(lat1, lon1, lat2, lon2) {
-        const earthRadius = 6371; // Radius of the Earth in kilometers
-
-        // Convert latitude and longitude from degrees to radians
-        const latRad1 = (lat1 * Math.PI) / 180;
-        const lonRad1 = (lon1 * Math.PI) / 180;
-        const latRad2 = (lat2 * Math.PI) / 180;
-        const lonRad2 = (lon2 * Math.PI) / 180;
-
-        // Haversine formula
-        const dLat = latRad2 - latRad1;
-        const dLon = lonRad2 - lonRad1;
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos(latRad1) *
-            Math.cos(latRad2) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distance = earthRadius * c;
-
-        return distance; // Distance in kilometers
-      }
-
- 
-      const myLatitude = 55.7558;
-      const myLongitude = 37.6176;
-      result.forEach((meeting) => {
-        meeting.kilometr = calculateDistance(
-          myLatitude,
-          myLongitude,
-          meeting.location.coordinates[0],
-          meeting.location.coordinates[1]
-        );
-      });
-
-      // separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
-      result.sort((a, b) => a.kilometr - b.kilometr);
-      return res.status(200).send(result);
-    } else {
-      const result = await Event.find({ status: { $eq: 1 } }).populate({
-        path: "category",
-        select: "avatar name map_avatar",
-      });
-      function separateUpcomingAndPassed(events) {
-        const now = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
-        const upcoming = [];
-        const passed = [];
-
-        events.forEach((event) => {
-          // const eventDate = new Date(event.started_time);
-          if (event.started_time > now) {
-            upcoming.push(event);
-          } else {
-            passed.push(event);
+        const separatedEvents = separateUpcomingAndPassed(result);
+        if (separatedEvents.passed.length > 0) {
+          for (let i = 0; i < separatedEvents.passed.length; i++) {
+            await Event.findByIdAndUpdate(separatedEvents.passed[i]._id, {
+              situation: "passed",
+            });
           }
-        });
-
-        return { upcoming, passed };
-      }
-      const separatedEvents = separateUpcomingAndPassed(result);
-      if (separatedEvents.passed.length > 0) {
-        for (let i = 0; i < separatedEvents.passed.length; i++) {
-          await Event.findByIdAndUpdate(separatedEvents.passed[i]._id, {
-            situation: "passed",
-          });
         }
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+          const earthRadius = 6371; // Radius of the Earth in kilometers
+  
+          // Convert latitude and longitude from degrees to radians
+          const latRad1 = (lat1 * Math.PI) / 180;
+          const lonRad1 = (lon1 * Math.PI) / 180;
+          const latRad2 = (lat2 * Math.PI) / 180;
+          const lonRad2 = (lon2 * Math.PI) / 180;
+  
+          // Haversine formula
+          const dLat = latRad2 - latRad1;
+          const dLon = lonRad2 - lonRad1;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(latRad1) *
+              Math.cos(latRad2) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = earthRadius * c;
+  
+          return distance; // Distance in kilometers
+        }
+  
+   
+        const myLatitude = 55.7558;
+        const myLongitude = 37.6176;
+        result.forEach((meeting) => {
+          meeting.kilometr = calculateDistance(
+            myLatitude,
+            myLongitude,
+            meeting.location.coordinates[0],
+            meeting.location.coordinates[1]
+          );
+        });
+  
+        // separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+        result.sort((a, b) => a.kilometr - b.kilometr);
+        return res.status(200).send(result);
+      } else {
+        const result = await Event.find({ status: { $eq: 1 } }).populate({
+          path: "category",
+          select: "avatar name map_avatar",
+        });
+        function separateUpcomingAndPassed(events) {
+          const now = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+          const upcoming = [];
+          const passed = [];
+  
+          events.forEach((event) => {
+            // const eventDate = new Date(event.started_time);
+            if (event.started_time > now) {
+              upcoming.push(event);
+            } else {
+              passed.push(event);
+            }
+          });
+  
+          return { upcoming, passed };
+        }
+        const separatedEvents = separateUpcomingAndPassed(result);
+        if (separatedEvents.passed.length > 0) {
+          for (let i = 0; i < separatedEvents.passed.length; i++) {
+            await Event.findByIdAndUpdate(separatedEvents.passed[i]._id, {
+              situation: "passed",
+            });
+          }
+        }
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+          const earthRadius = 6371; // Radius of the Earth in kilometers
+  
+          // Convert latitude and longitude from degrees to radians
+          const latRad1 = (lat1 * Math.PI) / 180;
+          const lonRad1 = (lon1 * Math.PI) / 180;
+          const latRad2 = (lat2 * Math.PI) / 180;
+          const lonRad2 = (lon2 * Math.PI) / 180;
+  
+          // Haversine formula
+          const dLat = latRad2 - latRad1;
+          const dLon = lonRad2 - lonRad1;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(latRad1) *
+              Math.cos(latRad2) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = earthRadius * c;
+  
+          return distance; // Distance in kilometers
+        }
+  
+  
+        const myLatitude = 55.7558;
+        const myLongitude = 37.6176;
+        result.forEach((meeting) => {
+          meeting.kilometr = calculateDistance(
+            myLatitude,
+            myLongitude,
+            meeting.location.coordinates[0],
+            meeting.location.coordinates[1]
+          );
+        });
+  
+        // separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+        result.sort((a, b) => a.kilometr - b.kilometr);
+        return res.status(200).send(result);
       }
-      function calculateDistance(lat1, lon1, lat2, lon2) {
-        const earthRadius = 6371; // Radius of the Earth in kilometers
-
-        // Convert latitude and longitude from degrees to radians
-        const latRad1 = (lat1 * Math.PI) / 180;
-        const lonRad1 = (lon1 * Math.PI) / 180;
-        const latRad2 = (lat2 * Math.PI) / 180;
-        const lonRad2 = (lon2 * Math.PI) / 180;
-
-        // Haversine formula
-        const dLat = latRad2 - latRad1;
-        const dLon = lonRad2 - lonRad1;
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos(latRad1) *
-            Math.cos(latRad2) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distance = earthRadius * c;
-
-        return distance; // Distance in kilometers
-      }
-
-
-      const myLatitude = 55.7558;
-      const myLongitude = 37.6176;
-      result.forEach((meeting) => {
-        meeting.kilometr = calculateDistance(
-          myLatitude,
-          myLongitude,
-          meeting.location.coordinates[0],
-          meeting.location.coordinates[1]
-        );
-      });
-
-      // separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
-      result.sort((a, b) => a.kilometr - b.kilometr);
-      return res.status(200).send(result);
+    } catch (error) {
+      console.log(error);
+      res.status(500).send({ message: "Server error" });
     }
+
   };
   allFilter = async (req, res) => {
     try {
@@ -986,44 +1006,15 @@ class EventController {
       let eventsArray = [];
 
       const resultCategory = await EventCategory.find();
-      if (!authHeader) {
-        for (let i = 0; i < resultCategory.length; i++) {
-          let obj = {};
-          obj.category = resultCategory[i].name;
-          obj.avatar = resultCategory[i].avatar;
-          obj.id = resultCategory[i]._id;
-          const resultEvent = await Event.find({
-            category: resultCategory[i]._id,
-          });
-          obj.events = resultEvent;
-          dbObj.push(obj);
-        }
-
-        const sortArray = dbObj.sort(
-          (a, b) => b.events.length - a.events.length
-        );
-
-        for (let z = 0; z < sortArray.length; z++) {
-          for (let r = 0; r < sortArray[z].events.length; r++) {
-            eventsArray.push(sortArray[z].events[r]);
-          }
-        }
-
-        resultObj.events = eventsArray;
-        for (let x = sortArray.length - 1; x >= 0; x--) {
-          let objNew = {};
-          objNew.category_name = sortArray[x].category;
-          objNew.id = sortArray[x].id;
-          objNew.avatar = sortArray[x].avatar;
-          categoryArray.unshift(objNew);
-        }
-        resultObj.category = categoryArray;
-
-        return res.status(200).send(resultObj);
-      } else {
+      if (authHeader) {
+        console.log("authHeader-event-allFilter", authHeader);
+        
         const token = authHeader.split(" ")[1];
-
+        console.log("token", token);
+        
         const user = jwt.decode(token);
+        console.log("user", user);
+        
         for (let i = 0; i < resultCategory.length; i++) {
           let obj = {};
           obj.category = resultCategory[i].name;
@@ -1056,9 +1047,48 @@ class EventController {
         }
         resultObj.category = categoryArray;
         return res.status(200).send(resultObj);
+
+        /////////////////////////////////////////
+       
+      } else {
+        for (let i = 0; i < resultCategory.length; i++) {
+          let obj = {};
+          obj.category = resultCategory[i].name;
+          obj.avatar = resultCategory[i].avatar;
+          obj.id = resultCategory[i]._id;
+          const resultEvent = await Event.find({
+            category: resultCategory[i]._id,
+          });
+          obj.events = resultEvent;
+          dbObj.push(obj);
+        }
+
+        const sortArray = dbObj.sort(
+          (a, b) => b.events.length - a.events.length
+        );
+
+        for (let z = 0; z < sortArray.length; z++) {
+          for (let r = 0; r < sortArray[z].events.length; r++) {
+            eventsArray.push(sortArray[z].events[r]);
+          }
+        }
+
+        resultObj.events = eventsArray;
+        for (let x = sortArray.length - 1; x >= 0; x--) {
+          let objNew = {};
+          objNew.category_name = sortArray[x].category;
+          objNew.id = sortArray[x].id;
+          objNew.avatar = sortArray[x].avatar;
+          categoryArray.unshift(objNew);
+        }
+        resultObj.category = categoryArray;
+
+        return res.status(200).send(resultObj);
       }
     } catch (error) {
       console.error(error);
+      res.status(500).send({message:"Server error"});
+
     }
   };
   radius = async (req, res) => {
@@ -1146,7 +1176,7 @@ class EventController {
   opportunity = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (authHeader&&authHeader!=="null") {
+      // if (authHeader&&authHeader!=="null") {
         const token = authHeader.split(" ")[1];
 
         const user = jwt.decode(token);
@@ -1161,9 +1191,9 @@ class EventController {
         }
 
         return res.status(200).send({ message: "success" });
-      } else {
-        return res.status(401).send("Unauthorized");
-      }
+      // } else {
+      //   return res.status(401).send("Unauthorized");
+      // }
     } catch (error) {
       console.error(error);
       return res.status(500).send("Internal Server Error");
@@ -1357,7 +1387,7 @@ class EventController {
   addParticipant = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (authHeader&&authHeader!=="null") {
+      // if (authHeader&&authHeader!=="null") {
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
         // const user = { id: "656ecb2e923c5a66768f4cd3" };
@@ -1376,9 +1406,9 @@ class EventController {
         } else {
           return res.status(401).send({ message: "Event not found" });
         }
-      } else {
-        return res.status(401).send({ message: "Unauthorized" });
-      }
+      // } else {
+      //   return res.status(401).send({ message: "Unauthorized" });
+      // }
     } catch (error) {
       console.error(error);
       return res.status(500).send({ message: "Internal Server Error" });
@@ -1387,7 +1417,7 @@ class EventController {
   addParticipantSpot = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (authHeader&&authHeader!=="null") {
+      // if (authHeader&&authHeader!=="null") {
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
         // const user = { id: "656ecb2e923c5a66768f4cd3" };
@@ -1405,9 +1435,9 @@ class EventController {
         } else {
           return res.status(401).send({ message: "Event not found" });
         }
-      } else {
-        return res.status(401).send("Unauthorized");
-      }
+      // } else {
+      //   return res.status(401).send("Unauthorized");
+      // }
     } catch (error) {
       console.error(error);
       return res.status(500).send("Internal Server Error");

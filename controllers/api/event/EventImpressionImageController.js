@@ -14,9 +14,13 @@ class EventImpressionImageController{
     store = async (req,res) => {
         let data = {};
         data.event = req.body.event_id;
-        data.user = req.user.id;
-        data.userName = req.user.name ? req.user.name : '';
-        data.userSurname = req.user.surname ? req.user.surname : '';
+        const authHeader = req.headers.authorization;
+        const token = authHeader.split(" ")[1];
+
+        const user = jwt.decode(token);
+        data.user = user.id;
+        data.userName = user.name ? user.name : '';
+        data.userSurname = user.surname ? user.surname : '';
         data.path = req.body.files;
         // data.images = req.files.images;
         const imp = await this.EventImpressionImageService.store(data)

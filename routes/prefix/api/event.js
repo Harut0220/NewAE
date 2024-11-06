@@ -5,80 +5,113 @@ import FavoriteController from "../../../controllers/api/event/FavoriteControlle
 import VisitController from "../../../controllers/api/event/VisitController.js";
 import LikeController from "../../../controllers/api/event/LikeController.js";
 import ViewController from "../../../controllers/api/event/ViewController.js";
-import { eventCategory, event, likeDislike, rating, comment, commentLike, ImpressionImage, userImpression, nearEvent } from "../../../middlewares/validate/api/event.js";
+import {
+  eventCategory,
+  event,
+  likeDislike,
+  rating,
+  comment,
+  commentLike,
+  ImpressionImage,
+  userImpression,
+  nearEvent,
+} from "../../../middlewares/validate/api/event.js";
 import RatingController from "../../../controllers/api/event/RatingController.js";
 import CommentController from "../../../controllers/api/event/CommentController.js";
-import EventImpressionImageController from "../../../controllers/api/event/EventImpressionImageController.js"
+import EventImpressionImageController from "../../../controllers/api/event/EventImpressionImageController.js";
 import InPlaceController from "../../../controllers/api/event/InPlaceController.js";
 import { empObj, isEmpParamObjId } from "../../../middlewares/isEmpty.js";
 import authenticateJWT from "../../../middlewares/authJWT.js";
 import authenticateJWTWithoutCheck from "../../../middlewares/authJWTwithoutCheck.js";
+import newAuthJWT from "../../../middlewares/newAuthJWT.js";
+// import { eventStore } from "../../../middlewares/validate/api/event.js";
+const eventRoutes = Router();
+eventRoutes.post("/notif/opportunity", newAuthJWT, EventController.opportunity);
+eventRoutes.get(
+  "/",
+  newAuthJWT,
+  authenticateJWTWithoutCheck,
+  EventController.index
+);
 
-const 
-eventRoutes = Router();
+eventRoutes.get("/single/:id", isEmpParamObjId, EventController.single);
 
-eventRoutes.post("/notif/opportunity",EventController.opportunity)
-//authenticateJWTWithoutCheck,
-eventRoutes.get('/',authenticateJWTWithoutCheck,EventController.index);
+eventRoutes.post("/store", newAuthJWT, event, EventController.store);
+eventRoutes.post(
+  "/add/participant",
+  newAuthJWT,
+  EventController.addParticipant
+);
+eventRoutes.post(
+  "/add/participant/spot",
+  newAuthJWT,
+  EventController.addParticipantSpot
+);
 
-eventRoutes.get("/single/:id",isEmpParamObjId,EventController.single);
+eventRoutes.put("/edit/:id", isEmpParamObjId, empObj, EventController.edit);
 
-
-eventRoutes.post('/store',EventController.store);
-
-eventRoutes.post("/add/participant",EventController.addParticipant)
-
-eventRoutes.post("/add/participant/spot",EventController.addParticipantSpot)
-
-eventRoutes.put("/edit/:id",isEmpParamObjId,empObj,EventController.edit);
-
-eventRoutes.get("/near/:id",isEmpParamObjId,EventController.nearEvent);
-
-eventRoutes.post("/favorite",FavoriteController.favorite);
-
-eventRoutes.post("/like",LikeController.like);
+eventRoutes.get("/near/:id", isEmpParamObjId, EventController.nearEvent);
+eventRoutes.post("/favorite", newAuthJWT, FavoriteController.favorite);
+eventRoutes.post("/like", newAuthJWT, likeDislike, LikeController.like);
 ///////////////////////////////////minchev stex
-eventRoutes.post("/add/comment",CommentController.addComment);
+eventRoutes.post(
+  "/add/comment",
+  newAuthJWT,
+  comment,
+  CommentController.addComment
+);
 
-eventRoutes.delete("/comment/delete",CommentController.deleteComment);
+eventRoutes.delete("/comment/delete", CommentController.deleteComment);
+eventRoutes.post(
+  "/comment/like",
+  newAuthJWT,
+  commentLike,
+  CommentController.commentLike
+);
+eventRoutes.post(
+  "/comment/answer",
+  newAuthJWT,
+  CommentController.commentAnswer
+);
 
-eventRoutes.post("/comment/like",CommentController.commentLike);
+eventRoutes.delete(
+  "/comment/answer/delete",
+  newAuthJWT,
+  CommentController.deleteCommentAnswer
+);
+eventRoutes.post(
+  "/comment/answer/like",
+  newAuthJWT,
+  CommentController.commentAnswerLike
+);
+eventRoutes.post("/add/rating", newAuthJWT, rating, RatingController.addRating);
 
-eventRoutes.post("/comment/answer",CommentController.commentAnswer);
+eventRoutes.get("/events", EventController.upcoming); //kilometr motikic heru
 
-eventRoutes.delete("/comment/answer/delete",CommentController.deleteCommentAnswer);
+eventRoutes.get("/allEvent", EventController.allEvent); //kilometr motikic heru
 
-eventRoutes.post("/comment/answer/like",CommentController.commentAnswerLike);
+eventRoutes.get("/allFilter", EventController.allFilter); //shatic qich
 
-eventRoutes.post("/add/rating",RatingController.addRating);
+eventRoutes.get("/radius", EventController.radius); //kilometr motikic heru
 
-eventRoutes.get("/events",EventController.upcoming)//kilometr motikic heru
+eventRoutes.get("/my/events", EventController.myEvents);
 
-eventRoutes.get("/allEvent",EventController.allEvent)//kilometr motikic heru
+eventRoutes.get("/my/participant", newAuthJWT, EventController.myParticipant); //kilometr motikic heru
 
-eventRoutes.get("/allFilter",EventController.allFilter)//shatic qich
-
-eventRoutes.get("/radius",EventController.radius)//kilometr motikic heru
-
-eventRoutes.get("/my/events",EventController.myEvents)
-
-eventRoutes.get("/my/participant",EventController.myParticipant)//kilometr motikic heru
-
-eventRoutes.post("/socketTest",EventController.socket)
+eventRoutes.post("/socketTest", EventController.socket);
 
 // eventRoutes.get("/test/upcoming",EventController.testUpcoming)
 
-
-
-/////////////////////////////////////////
-//nearEvent,
-// eventRoutes.get('/near/:id',EventController.nearEvent);
-// //authenticateJWT,
+/////////////////////////////////////////// //authenticateJWT,
 // eventRoutes.put('/edit/:id',empObj,authenticateJWT,EventController.edit);
 // //authenticateJWTWithoutCheck,
 // eventRoutes.get('/categories',authenticateJWTWithoutCheck,EventCategoryController.index);
 // //authenticateJWT,eventCategory,
-eventRoutes.post('/category/store',EventCategoryController.store);
+eventRoutes.post(
+  "/category/store",
+  eventCategory,
+  EventCategoryController.store
+);
 // //authenticateJWT,likeDislike,
 // eventRoutes.post('/like',authenticateJWT,likeDislike,LikeController.store);
 // //authenticateJWT,
@@ -106,7 +139,12 @@ eventRoutes.post('/category/store',EventCategoryController.store);
 // //authenticateJWT,
 // eventRoutes.post('/comment/like/store',authenticateJWT,commentLike,CommentController.like);
 // //authenticateJWT,
-eventRoutes.post('/impression-images/store',authenticateJWT,ImpressionImage,EventImpressionImageController.store);
+eventRoutes.post(
+  "/impression-images/store",
+  newAuthJWT,
+  ImpressionImage,
+  EventImpressionImageController.store
+);
 // //userImpression,
 // eventRoutes.get('/user/impressions',userImpression,EventController.userImpressions)
 // //authenticateJWT,
@@ -117,4 +155,4 @@ eventRoutes.post('/impression-images/store',authenticateJWT,ImpressionImage,Even
 // eventRoutes.get('/single/:id',EventController.single);
 //authenticateJWT
 
-export {eventRoutes}
+export { eventRoutes };

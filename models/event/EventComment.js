@@ -26,7 +26,8 @@ const EventComment = new Schema({
             ref: 'event_comment_likes',    
         }
     ],
-    date:{type:String},
+    date:{type:String,
+    required:true},
     
 }, {
     timestamps: true
