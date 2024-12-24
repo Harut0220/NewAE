@@ -3,6 +3,7 @@ const socket = new WebSocket(
   `${socketProt}://${window.location.host}/notification/ADMIN`
 );
 let notifListMod = document.getElementById("notifModal");
+console.log(`${socketProt}://${window.location.host}/notification/ADMIN`,"${socketProt}://${window.location.host}/notification/ADMIN");
 
 socket.onopen = function (e) {
   console.log("connected success");

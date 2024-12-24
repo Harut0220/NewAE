@@ -38,7 +38,7 @@ const generateDiv = function(data){
     <p>Ответ, пользователю</p>
     </div>
     <div class="profil">
-    ${data.user && data.user.avatar ? `<img src="/storage/${data.user.avatar}" class="profPic">` : ''}
+    ${data.user && data.user.avatar ? `<img src="/${data.user.avatar}" class="profPic">` : ''}
     <div class="profilPic">
       <p class="name" id="name">${data.user && data.user.name ? data.user.name : ''}</p>
       <p class="organ">${data.user && data.user.roles && data.user.roles.name ? lng(data.user.roles.name) : ""}</p>

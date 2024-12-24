@@ -7,6 +7,29 @@
   margin: 0;
   padding: 0;
 }
+.modal {
+  display: none; /* Hidden by default */
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal > img {
+  width: 48px;
+  height: 48px;
+}
+
+.modalText {
+  margin-left: 10px;
+  color: white;
+  font-size: 20px;
+}
 .active {
   color: #fee798 !important;
 }
@@ -72,10 +95,11 @@
   flex-direction: column;
   border-right: 1px solid #dadada;
 }
-/* #passport{
-  width: 100px;
-  height: 100px;
-} */
+#passport{
+  margin-top: 20px;
+  width: 400px;
+  height: 350px;
+}
 .Logo {
   width: 100%;
   height: 64.6px;

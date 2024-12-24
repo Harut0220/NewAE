@@ -99,10 +99,10 @@ method POST
   "joinng_time":"2016-05-18 00:00",
   "tickets_link":"11111", // can be empty
   "website_link":"http://test"  // can be empty
-  "latit":"50",
-  "longit":"50",
+  "latitude":"50",
+  "longitude":"50",
   "images":["/storage/upload/path255.png","/storage/upload/path35.png"],
-  "place_name": "test"
+  "address": "test"
   
 }
 

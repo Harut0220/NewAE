@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import hbs from "nodemailer-express-handlebars"
 dotenv.config()
 
+
+
+
 let transporter = nodemailer.createTransport({
     service: process.env.MAIL_SERVICE,
     auth: {

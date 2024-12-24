@@ -230,7 +230,7 @@ function burgerMenu(icon) {
     let im = ``
     for(let i=0;i<data.length;i++){
       im += `<div class="emptyPhotosImg">
-      <img src="/storage/${data[i]}" data-number="${i}">
+      <img src="/${data[i]}" data-number="${i}">
     </div>`
     }
     return im
@@ -250,7 +250,7 @@ function burgerMenu(icon) {
     for(let i=0;i<d.length;i++){
        c+= `<div style="display: flex; flex-direction: column; gap: 10px;">
        <div style="display: flex; flex-direction: row; gap: 10px;">
-       ${avatar ? `<img src="/storage/${avatar}" style="height: fit-content; margin-top: 9px;">` : ''}
+       ${avatar ? `<img src="/${avatar}" style="height: fit-content; margin-top: 9px;">` : ''}
        <div style="display: flex; flex-direction: column; width: 90%;">
        <div style="display: flex; flex-direction: row; justify-content: space-between;">
        <p style="font-weight: 600; font-size: 12px; margin: 7px 0px; padding: 0px;">

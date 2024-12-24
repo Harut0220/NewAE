@@ -81,19 +81,21 @@ profileRoutes.get("/caregories", CategoryController.index);
 profileRoutes.get("/events", EventController.index);
 
 profileRoutes.delete("/event/image/:id",isEmpParamObjId, EventController.destroyImage);
+
 profileRoutes.delete("/meet/image/:id",isEmpParamObjId, meetingController.destroyImage);
 
 profileRoutes.post("/events/destroy/many", EventController.destroy); //must be DELETE
 
 profileRoutes.get("/event/single/:id",isEmpParamObjId, EventController.single);
 
-
-
-
 profileRoutes.get("/event/show/:id",isEmpParamObjId, EventController.show);
+
 profileRoutes.post("/event/edit/:id",isEmpParamObjId, EventController.edit); // must be PUT
 
 profileRoutes.post("/event/reject/:id",isEmpParamObjId, EventController.reject); // must be PATCH
+
+profileRoutes.get("/event/reject/:id",isEmpParamObjId, EventController.reject); // must be PATCH
+
 profileRoutes.get("/event-categories", EventCategoryController.index);
 
 profileRoutes.post(
@@ -127,12 +129,18 @@ profileRoutes.post(
 ); 
 
 profileRoutes.use("/company",companyAdminRouter)
+
 profileRoutes.use("/meeting",meetingAdminRouter)
+
 profileRoutes.get("/meet/single/:id",isEmpParamObjId,meetingController.meetSingle)
+
 profileRoutes.get("/meet/show/:id",isEmpParamObjId,meetingController.meetShow)
+
 profileRoutes.post("/meet/reject/:id",isEmpParamObjId,meetingController.meetReject)
+
 profileRoutes.post("/meet/resolve/:id",isEmpParamObjId,meetingController.show)
-profileRoutes.post("/meet/edit/:id",isEmpParamObjId,meetingController.show)
+
+profileRoutes.post("/meet/edit/:id",isEmpParamObjId,meetingController.edite)
 // profileRoutes.post("/meet/image/delete/:id",meetingController.destroyImage)
 
 

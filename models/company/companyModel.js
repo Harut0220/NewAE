@@ -9,10 +9,8 @@ const Company = new Schema(
     owner: { type: Schema.Types.ObjectId, ref: "User" },
     companyName: { type: String ,default:"" },
     web: { type: String,default:"" },
-    coords: {
-      latit: { type: Number ,required:true},
-      longit: { type: Number, required: true },
-    },
+    latitude: { type: Number ,required:true},
+    longitude: { type: Number, required: true },
     ratings: [
       {
       type:Schema.Types.ObjectId,
@@ -22,7 +20,7 @@ const Company = new Schema(
     comments: [{ type: Schema.Types.ObjectId, ref: "company_comment" }],
     status: { type: Number, default: 0 },
     kilometr: { type: Number, default: 0 },
-    place_name: { type: String, default: "" },
+    address: { type: String, default: "" },
     images: [{ type: Schema.Types.ObjectId, ref: "company_image" }],
     phoneNumbers: [{ type: Schema.Types.ObjectId, ref: "company_phone" }],
     email: { type: String ,default:"" },
@@ -35,6 +33,7 @@ const Company = new Schema(
     likes: [{ type: Schema.Types.ObjectId, ref: "company_likes" }],
     open: { type: Boolean, default: false },
     view: [{ type: Schema.Types.ObjectId, ref: "company_views" }],
+    impression_images:[{ type: Schema.Types.ObjectId, ref: "company_impression_image" }],
     rejectMessage: { type: String, default: "null" },
     changedStatusDate: {
       type: String,
@@ -53,6 +52,11 @@ const Company = new Schema(
       count: { type: Number, default: 0 },
     },
     onlineReason: { type: String, default: "null" },
+    hotDeals:[{ type: Schema.Types.ObjectId, ref: "company_hot_deals" }],
+    isNight:{type:Boolean,required:true},
+    participants:[{ type: Schema.Types.ObjectId, ref: "User" }],
+    todayRegisters:{type:Number,default:0},
+    afterRegisters:{type:Number,default:0},
   },
   {
     timestamps: true, // This will add createdAt and updatedAt fields

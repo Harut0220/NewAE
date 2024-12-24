@@ -1,4 +1,3 @@
-import expressWs from "express-ws";
 import EventService from "../../../services/EventService.js";
 import ImpressionService from "../../../services/ImpressionService.js";
 import notifEvent from "../../../events/NotificationEvent.js";
@@ -7,18 +6,20 @@ import CalculateTheDistance from "../../../services/CalculateTheDistance.js";
 import UserService from "../../../services/UserService.js";
 import Event from "../../../models/event/Event.js";
 import EventCategory from "../../../models/event/EventCategory.js";
-import EventImage from "../../../models/event/EventImage.js";
 import jwt from "jsonwebtoken";
 import User from "../../../models/User.js";
 import EventParticipants from "../../../models/event/EventParticipants.js";
-import e from "express";
 import EventView from "../../../models/event/EventView.js";
 import EventParticipantsSpot from "../../../models/event/EventParticipantsSpot.js";
 import EventLike from "../../../models/event/EventLike.js";
 import EventFavorites from "../../../models/event/EventFavorites.js";
 import moment from "moment";
 import EventRating from "../../../models/event/EventRating.js";
-
+import EventCommentAnswerLike from "../../../models/event/EventCommentAnswerLike.js";
+import EventCommentLikes from "../../../models/event/EventCommentLikes.js";
+import schedule from "node-schedule";
+import eventImpressionImages from "../../../models/event/EventImpressionImages.js";
+import Notification from "../../../models/Notification.js";
 class EventController {
   constructor() {
     this.EventService = new EventService();
@@ -28,118 +29,173 @@ class EventController {
     this.UserService = new UserService();
   }
 
+  ImpressionImage = async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+    const { event_id, files } = req.body;
+
+    const serviceFunction = async () => {
+      const companyImpressionImagesDb = await eventImpressionImages
+        .findOne({ event: event_id, user: user.id })
+        .populate({ path: "user", select: "name surname avatar" });
+      if (!companyImpressionImagesDb) {
+        const resultDb = new eventImpressionImages({
+          path: files,
+          user: user.id,
+          event: event_id,
+        });
+        await resultDb.save();
+        await Event.findByIdAndUpdate(event_id, {
+          $push: { impression_images: resultDb._id },
+        });
+        const result = await eventImpressionImages
+          .findById(resultDb._id)
+          .populate({ path: "user", select: "name surname avatar" });
+
+        return { result, bool: false };
+      } else {
+        for (let i = 0; i < files.length; i++) {
+          companyImpressionImagesDb.path.push(files[i]);
+          await companyImpressionImagesDb.save();
+        }
+        const result = await eventImpressionImages
+          .findById(companyImpressionImagesDb._id)
+          .populate({ path: "user", select: "name surname avatar" });
+        return { result, bool: true };
+      }
+    };
+    const result = await serviceFunction();
+    const data = await eventImpressionImages
+      .findById(result.result._id)
+      .populate({ path: "user", select: "name surname avatar" });
+
+    const eventDb = await Event.findById(event_id)
+      .populate({
+        path: "owner",
+        select: "_id notifEvent",
+      })
+      .populate("category");
+    const registerDb = await EventParticipants.findOne({
+      user: user.id,
+      eventId: event_id,
+    });
+    const evLink = `alleven://eventDetail/${event_id}`;
+
+    const dataNotif = {
+      status: 2,
+      date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+      user: eventDb.owner._id.toString(),
+      type: "impression",
+      message: `Пользователь ${user.name} поделился впечатлением о событии ${eventDb.name}.`,
+      event: event_id,
+      link: evLink,
+    };
+    const nt = new Notification(dataNotif);
+    await nt.save();
+    if (eventDb.owner.notifEvent) {
+      notifEvent.emit(
+        "send",
+        eventDb.owner._id.toString(),
+        JSON.stringify({
+          type: "impression",
+          date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+          message: `Пользователь ${user.name} поделился впечатлением о событии ${eventDb.name}.`,
+          categoryIcon: eventDb.category.avatar, //sarqel
+          link: evLink,
+        })
+      );
+    }
+
+    return res
+      .status(200)
+      .send({ updated: result.bool, success: true, data: result.result });
+  };
+
   myParticipant = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      // if (authHeader&&authHeader!=="null") {
-        const token = authHeader.split(" ")[1];
-        const user = jwt.decode(token);
-        // const userId = user.id;
-        let resArray = [];
-        // const userId = "656ecb2e923c5a66768f4cd5";
-        const resDb = await EventParticipants.find({
-          userId: user.id,
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
+      let resArray = [];
+      const resDb = await EventParticipants.find({
+        user: user.id,
+      })
+        .populate({
+          path: "eventId",
+          populate: [{ path: "images" }],
         })
-          .populate({
-            path: "eventId", // Populates eventId
-            populate: [
-              { path: "images" }, // Populates images inside eventId    // Populates likes inside eventId
-            ],
-          })
-          .exec();
-        for (let i = 0; i < resDb.length; i++) {
-          resArray.push(resDb[i].eventId);
-        }
-        function separateUpcomingAndPassed(events) {
-          const upcoming = [];
-          const passed = [];
+        .exec();
+      for (let i = 0; i < resDb.length; i++) {
+        resArray.push(resDb[i].eventId);
+      }
+      function separateUpcomingAndPassed(events) {
+        const upcoming = [];
+        const passed = [];
 
-          events.forEach((event) => {
-            // console.log("event.startTime", event.started_time);
-            // const startTime = new Date(event.started_time);
-            // console.log("startTime", startTime);
-            const dateNow = moment
-              .tz(process.env.TZ)
-              .format("YYYY-MM-DD HH:mm");
-            // const dateNow = new Date(formattedDateNow);
-            // console.log("dateNow", dateNow);
+        events.forEach((event) => {
+          const dateNow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
 
-            if (event.started_time > dateNow) {
-              upcoming.push(event);
-            } else {
-              console.log("passed");
-
-              passed.push(event);
-              // console.log("passed", passed);
-            }
-          });
-          // console.log("upcoming", upcoming);
-          // console.log("passed", passed);
-
-          return { upcoming, passed };
-        }
-
-        const upcomPass = separateUpcomingAndPassed(resArray);
-
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-          const earthRadius = 6371; // Radius of the Earth in kilometers
-  
-          // Convert latitude and longitude from degrees to radians
-          const latRad1 = (lat1 * Math.PI) / 180;
-          const lonRad1 = (lon1 * Math.PI) / 180;
-          const latRad2 = (lat2 * Math.PI) / 180;
-          const lonRad2 = (lon2 * Math.PI) / 180;
-  
-          // Haversine formula
-          const dLat = latRad2 - latRad1;
-          const dLon = lonRad2 - lonRad1;
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(latRad1) *
-              Math.cos(latRad2) *
-              Math.sin(dLon / 2) *
-              Math.sin(dLon / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const distance = earthRadius * c;
-  
-          return distance; // Distance in kilometers
-        }
-
-        const myLatitude = 55.7558;
-        const myLongitude = 37.6176;
-
-        upcomPass.upcoming.forEach((meeting) => {
-          meeting.kilometr = calculateDistance(
-            myLatitude,
-            myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
-          );
-        });
-        upcomPass.passed.forEach((meeting) => {
-          meeting.kilometr = calculateDistance(
-            myLatitude,
-            myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
-          );
+          if (event.started_time > dateNow) {
+            upcoming.push(event);
+          } else {
+            passed.push(event);
+          }
         });
 
+        return { upcoming, passed };
+      }
 
-        upcomPass.upcoming.sort((a, b) => a.kilometr - b.kilometr);
-        upcomPass.passed.sort((a, b) => a.kilometr - b.kilometr);
+      const upcomPass = separateUpcomingAndPassed(resArray);
 
+      function calculateDistance(lat1, lon1, lat2, lon2) {
+        const earthRadius = 6371;
 
+        const latRad1 = (lat1 * Math.PI) / 180;
+        const lonRad1 = (lon1 * Math.PI) / 180;
+        const latRad2 = (lat2 * Math.PI) / 180;
+        const lonRad2 = (lon2 * Math.PI) / 180;
 
+        const dLat = latRad2 - latRad1;
+        const dLon = lonRad2 - lonRad1;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(latRad1) *
+            Math.cos(latRad2) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = earthRadius * c;
 
-        const data = {};
-        data.upcoming = upcomPass.upcoming;
-        data.passed = upcomPass.passed;
+        return distance;
+      }
 
-        return res.status(200).send({ message: "success", data });
-      // } else {
-      //   return res.status(401).send({ message: "Unauthorized" });
-      // }
+      const myLatitude = 55.7558;
+      const myLongitude = 37.6176;
+
+      upcomPass.upcoming.forEach((meeting) => {
+        meeting.kilometr = calculateDistance(
+          myLatitude,
+          myLongitude,
+          meeting.latitude,
+          meeting.longitude
+        );
+      });
+      upcomPass.passed.forEach((meeting) => {
+        meeting.kilometr = calculateDistance(
+          myLatitude,
+          myLongitude,
+          meeting.latitude,
+          meeting.longitude
+        );
+      });
+      upcomPass.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+      upcomPass.passed.sort((a, b) => a.kilometr - b.kilometr);
+      const data = {};
+      data.upcoming = upcomPass.upcoming;
+      data.passed = upcomPass.passed;
+
+      return res.status(200).send({ message: "success", data });
     } catch (error) {
       console.error(error);
       return res.status(500).send({ message: "Internal server error" });
@@ -150,18 +206,16 @@ class EventController {
     try {
       const authHeader = req.headers.authorization;
 
-      if (authHeader&&authHeader!=="null") {
+      if (authHeader) {
         const token = authHeader.split(" ")[1];
-        console.log(authHeader, "authHeader");
-        
-        const user = jwt.decode(token);
-        // const user = { id: "656ecb2e923c5a66768f4cd3" };
-        const userId = user.id;
-        const resDb = await Event.find({ owner: userId, status: { $ne: 2 } })
-          .populate("owner")
+
+        const userToken = jwt.decode(token);
+        const user = userToken.id;
+        const resDb = await Event.find({ owner: user, status: { $ne: 2 } })
+          .populate({ path: "owner", select: "-password" })
           .populate({
             path: "participants",
-            populate: { path: "userId", select: "name surname avatar" },
+            populate: { path: "user", select: "name surname avatar" },
           })
           .populate("likes")
           .populate("images")
@@ -175,10 +229,10 @@ class EventController {
           .populate({
             path: "comments",
             populate: [
-              { path: "user", select: "name surname avatar" }, // Populate userId in comments
+              { path: "user", select: "name surname avatar" },
               {
-                path: "answer", 
-                populate: { path: "userId", select: "name surname avatar" }, // Populate userId in the nested answer array
+                path: "answer",
+                populate: { path: "user", select: "name surname avatar" },
               },
             ],
           })
@@ -214,14 +268,12 @@ class EventController {
 
             return parsedGivenDate.isAfter(resDb[i].changedStatusDate);
           });
-      
 
           pastParticipants = resDb[i].participants.filter((like) => {
             const parsedGivenDate = moment(like.date);
 
             return parsedGivenDate.isAfter(resDb[i].changedStatusDate);
           });
-
 
           let count =
             pastLikes.length +
@@ -251,24 +303,18 @@ class EventController {
           await resDb[i].save();
         }
 
-
         function separateUpcomingAndPassed(events) {
-  
           const upcoming = [];
           const passed = [];
 
           events.forEach((event) => {
-  
             const dateNow = moment
               .tz(process.env.TZ)
               .format("YYYY-MM-DD HH:mm");
 
-
             if (event.started_time > dateNow) {
               upcoming.push(event);
             } else {
-              console.log("passed");
-
               passed.push(event);
             }
           });
@@ -287,13 +333,8 @@ class EventController {
         const filter = separatedEvents.passed.filter(
           (event) => event.status === 1
         );
-        let passed = [];
-        console.log("filter", filter);
 
-
-
-        const dateChange = await Event.find({ owner: userId });
-       
+        const dateChange = await Event.find({ owner: user });
 
         for (let x = 0; x < dateChange.length; x++) {
           dateChange[x].changes.comment = false;
@@ -305,57 +346,17 @@ class EventController {
           dateChange[x].changedStatusDate = moment.tz(process.env.TZ).format();
           await dateChange[x].save();
         }
-        
-        separatedEvents.upcoming.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-       
+
+        separatedEvents.upcoming.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+
         res.status(200).send({
           message: "success",
           upcoming: separatedEvents.upcoming,
-          passed:filter,
+          passed: filter,
           count: countAll,
         });
-      } else {
-        console.log("login chexac");
-        
-        const resDb = await meetingModel
-          .find({ status: { $ne: 2 } })
-          .populate("userId")
-          .populate("participants")
-          .populate("comments")
-          .populate("likes")
-          .populate("images")
-          .populate("participantSpot");
-        function separateUpcomingAndPassed(events) {
-          const now = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
-          const upcoming = [];
-          const passed = [];
-
-          events.forEach((event) => {
-            if (event.started_time > now) {
-              upcoming.push(event);
-            } else {
-              passed.push(event);
-            }
-          });
-
-          return { upcoming, passed };
-        }
-        const separatedEvents = separateUpcomingAndPassed(resDb);
-        if (separatedEvents.passed.length > 0) {
-          for (let i = 0; i < separatedEvents.passed.length; i++) {
-            await Event.findByIdAndUpdate(separatedEvents.passed[i]._id, {
-              situation: "passed",
-            });
-          }
-        }
-        console.log(separatedEvents.passed, "separatedEvents.passed");
-        separatedEvents.upcoming.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        return {
-          message: "success",
-          upcoming: separatedEvents.upcoming,
-          passed: separatedEvents.passed,
-          // count: countAll,
-        };
       }
     } catch (error) {
       console.error(error);
@@ -368,15 +369,10 @@ class EventController {
     const authHeader = req.headers.authorization;
     const token = authHeader.split(" ")[1];
     const user = jwt.decode(token);
-    // if (authHeader) {
 
-      if (user.id) {
-        userRole = await this.UserService.getRoleByUserId(user.id);
-      }
-    // }
-    // if (req.user) {
-    //   userRole = await this.UserService.getRoleByUserId(req.user.id);
-    // }
+    if (user.id) {
+      userRole = await this.UserService.getRoleByuser(user.id);
+    }
 
     const params = {};
     const { category, situation, dateFrom, dateTo } = req.query;
@@ -434,12 +430,18 @@ class EventController {
     const eventUpdate = await Event.findOneAndUpdate(
       { _id: id },
       {
-        $set: { ratingCalculated: averageRating }, // Set new rating
+        $set: { ratingCalculated: averageRating }, 
       },
-      { new: true } // Return the updated document
+      { new: true } 
     )
-      .populate({ path: "owner", select: "name surname avatar" })
-      .populate({path:"participants",populate:{path:"userId",select:"name surname avatar phone_number"}})
+      .populate({ path: "owner", select: "name surname avatar phone_number" })
+      .populate({
+        path: "participants",
+        populate: {
+          path: "user",
+          select: "name surname avatar phone_number",
+        },
+      })
       .populate("likes")
       .populate("images")
       .populate("participantsSpot")
@@ -452,21 +454,15 @@ class EventController {
       .populate({
         path: "comments",
         populate: [
-          { path: "user", select: "name surname avatar" }, // Populate userId in comments
+          { path: "user", select: "name surname avatar" },
           {
-            path: "answer", // Populate the answer array
-            populate: { path: "userId", select: "name surname avatar" }, // Populate userId in the nested answer array
+            path: "answer", 
+            populate: { path: "user", select: "name surname avatar" }, 
           },
         ],
       })
       .exec();
-    // const events = await this.EventService.findAndLean(req.params.id);
 
-    // if (!isNaN(+events.status)) {
-    //   delete Object.assign(events, { eventStatus: +events.status })["status"];
-    // }
-    // const eventCommentArithMean =
-    //   await this.EventRatingService.arithmeticalMean(req.params.id);
     return res.status(200).send({
       status: "success",
       data: eventUpdate,
@@ -476,23 +472,135 @@ class EventController {
   store = async (req, res) => {
     const authHeader = req.headers.authorization;
 
-    // if (authHeader&&authHeader!=="null") {
-      const token = authHeader.split(" ")[1];
-      const user = jwt.decode(token);
-      let event = await this.EventService.store(req, user.id);
-      notifEvent.emit(
-        "send",
-        "ADMIN",
-        JSON.stringify({
-          type: "Новая события",
-          message: event.name,
-          data: event,
+    const token = authHeader.split(" ")[1];
+
+    const user = jwt.decode(token);
+    let event = await this.EventService.store(req, user.id);
+
+    notifEvent.emit(
+      "send",
+      "ADMIN",
+      JSON.stringify({
+        type: "Новая события",
+        message: event.name,
+        data: event,
+      })
+    );
+    const userDb = await User.findById(user.id);
+
+    const dat = event.started_time + ":00";
+
+    const eventTime = moment.tz(dat, process.env.TZ);
+
+    const notificationTime = eventTime.clone().subtract(1, "hour");
+
+
+    const currentTime = moment.tz(process.env.TZ).format();
+
+    async function sendMessage(idMeet) {
+      const eventDb = await Event.findById(idMeet)
+        .populate({
+          path: "participants",
+          populate: { path: "owner", select: "_id fcm_token notifEvent" },
         })
-      );
-      return res.json({ status: "success", data: event });
-    // } else {
-    //   return res.json({ status: "success", data: "Unauthorized" });
-    // }
+        .populate("participantSpot")
+        .populate("category")
+        .exec();
+
+      if (eventDb.participants.length) {
+        for (let i = 0; i < eventDb.participants.length; i++) {
+          const element = eventDb.participants[i].user;
+          if (element.fcm_token[0]) {
+            const evLink = `alleven://eventDetail/${eventDb._id}`;
+            const dataNotif = {
+              status: 2,
+              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+              user: d.owner.toString(),
+              type: "participation",
+              message: `Ваше событие ${d.name} находится на модерации`,
+              categoryIcon: eventDb.category.avatar,
+              event: eventDb._id,
+              link: evLink,
+            };
+            const nt = new Notification(dataNotif);
+            await nt.save();
+            console.log(
+              `Событие ${eventDb.purpose} начнется через час. Не пропустите.`
+            );
+            const date_time = moment.tz(process.env.TZ).format();
+            if (userDb.notifEvent) {
+              notifEvent.emit(
+                "send",
+                element._id,
+                JSON.stringify({
+                  type: "participation",
+                  date_time,
+                  message: `Событие ${eventDb.purpose} начнется через час. Не пропустите.`,
+                  categoryIcon: eventDb.category.avatar, 
+                  link: evLink,
+                })
+              );
+            }
+          }
+        }
+      }
+    }
+
+    schedule.scheduleJob(notificationTime.toDate(), () => {
+      sendMessage(event._id.toString());
+    });
+    async function sendEventMessage(idMeetSpot) {
+      const eventDb = await Event.findById(idMeetSpot)
+        .populate({
+          path: "participantsSpot",
+          populate: { path: "owner", select: "_id fcm_token notifEvent" },
+        })
+        .populate("category")
+        .exec();
+      if (eventDb) {
+        if (eventDb.notifEvent && eventDb.participantsSpot.length) {
+          for (let i = 0; i < eventDb.participantsSpot.length; i++) {
+            const element = eventDb.participantsSpot[i].user;
+            if (element.fcm_token[0]) {
+              const evLink = `alleven://eventDetail/${eventDb._id}`;
+              const dataNotif = {
+                status: 2,
+                date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+                user: eventDb.owner._id.toString(),
+                type: "participationSpot",
+                message: `Ваше событие ${eventDb.name} находится на модерации`,
+                categoryIcon: eventDb.category.avatar,
+                event: eventDb._id,
+                link: evLink,
+              };
+              const nt = new Notification(dataNotif);
+              await nt.save();
+              console.log(`Событие ${eventDb.purpose} началось.`);
+              const date_time = moment
+                .tz(process.env.TZ)
+                .format("YYYY-MM-DD HH:mm");
+
+              notifEvent.emit(
+                "send",
+                element._id,
+                JSON.stringify({
+                  type: "participationSpot",
+                  date_time,
+                  message: `Событие ${eventDb.purpose} началось.`,
+                  categoryIcon: eventDb.category.avatar, 
+                  link: evLink,
+                })
+              );
+            }
+          }
+        }
+      }
+    }
+    schedule.scheduleJob(eventTime.toDate(), () => {
+      sendEventMessage(event._id.toString());
+    });
+
+    return res.json({ status: "success", data: event });
   };
 
   edit = async (req, res) => {
@@ -524,15 +632,11 @@ class EventController {
     const id = req.params.id;
     const authHeader = req.headers.authorization;
     let data;
-    // let hour = false;
-    if (authHeader&&authHeader!=="null") {
+    if (authHeader) {
       const token = authHeader.split(" ")[1];
       const user = jwt.decode(token);
-      // const user = { id: "656ecb2e923c5a66768f4cd3" };
-      const resDb = await Event.findById(id)
-        .populate("ratings")
-        .populate("comments");
-      const ifView = await EventView.findOne({ userId: user.id, eventId: id });
+      const resDb = await Event.findById(id).populate("ratings");
+      const ifView = await EventView.findOne({ user: user.id, eventId: id });
 
       function calculateAverageRating(ratings) {
         if (ratings.length === 0) return 0;
@@ -548,7 +652,7 @@ class EventController {
 
       if (!ifView) {
         const view = new EventView({
-          userId: user.id,
+          user: user.id,
           eventId: id,
           date: moment().tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
         });
@@ -556,21 +660,21 @@ class EventController {
         data = await Event.findByIdAndUpdate(
           { _id: id },
           {
-            $push: { view: view._id }, // Increment view count
-            $set: { ratingCalculated: averageRating }, // Set new rating
+            $push: { view: view._id }, 
+            $set: { ratingCalculated: averageRating }, 
           },
           { new: true }
         )
-          .populate("owner")
+          .populate({ path: "owner", select: "-password" })
           .populate("participants")
           .populate("likes")
           .populate("images")
           .populate({
             path: "participantsSpot",
-            populate: { path: "userId", select: "name surname avatar" },
+            populate: { path: "user", select: "name surname avatar" },
           })
           .populate({
-            path: "impression_images", //impression_images
+            path: "impression_images", 
             populate: { path: "user", select: "name surname avatar" },
           })
           .populate("views")
@@ -582,80 +686,69 @@ class EventController {
           .populate({
             path: "comments",
             populate: [
-              { path: "user", select: "_id name surname avatar" }, // Populate userId in comments
+              { path: "user", select: "_id name surname avatar" }, 
               {
-                path: "answer", // Populate the answer array
-                populate: { path: "userId", select: "name surname avatar" }, // Populate userId in the nested answer array
+                path: "answer", 
+                populate: { path: "user", select: "name surname avatar" }, 
               },
             ],
           })
           .exec();
+        for (let i = 0; i < data.comments.length; i++) {
+          for (let z = 0; z < data.comments[i].answer.length; z++) {
+            const findLike = await EventCommentAnswerLike.findOne({
+              user: user.id,
+              answerId: data.comments[i].answer[z]._id,
+            });
+            if (findLike) {
+              data.comments[i].answer[z].isLike = true;
+            }
+          }
+          const findCommentLike = await EventCommentLikes.findOne({
+            user: user.id,
+            commentId: data.comments[i]._id,
+          });
+          if (findCommentLike) {
+            data.comments[i].isLike = true;
+          }
+        }
         const isRating = await EventRating.findOne({
           user: user.id,
           event: id,
         });
         data.isRating = isRating ? true : false;
         const isLike = await EventLike.findOne({
-          userId: user.id,
+          user: user.id,
           eventId: id,
         });
         data.isLike = isLike ? true : false;
         const isFavorite = await EventFavorites.findOne({
-          userId: user.id,
+          user: user.id,
           eventId: id,
         });
         data.isFavorite = isFavorite ? true : false;
         const isJoin = await EventParticipants.findOne({
-          userId: user.id,
+          user: user.id,
           eventId: id,
         });
         const timeMoscow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
         const eventTime = new Date(data.started_time);
         const dateNow = new Date(timeMoscow);
-        console.log("eventtime", eventTime);
-        console.log("datenow", dateNow);
 
         const timeDifference = eventTime - dateNow;
-        // const timeDifference = data.started_time - timeMoscow;
 
-        // Convert milliseconds to minutes
         const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
 
         if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
           data.hour = true;
-          console.log("The start time is less than an hour away.");
         }
-        //  else if (differenceInMinutes <= 0) {
-        //   console.log("The start time has already passed.");
-        // } else {
-        //   console.log("The start time is more than an hour away.");
-        // }
         if (isJoin) {
           data.joinStatus = 2;
 
-          // const now = new Date();
-
-          // const formattedDate =
-          //   now.getFullYear() +
-          //   "-" +
-          //   String(now.getMonth() + 1).padStart(2, "0") +
-          //   "-" +
-          //   String(now.getDate()).padStart(2, "0") +
-          //   " " +
-          //   String(now.getHours()).padStart(2, "0") +
-          //   ":" +
-          //   String(now.getMinutes()).padStart(2, "0") +
-          //   ":" +
-          //   String(now.getSeconds()).padStart(2, "0");
-
-          // Example start time (you can change it to any date and time you want)
-          // const startTime = new Date(data.started_time);
-          // const nowDate = new Date(formattedDate); // Use the desired start time in ISO format
-          // console.log(nowDate, "nowDate");
         }
 
         const isSpot = await EventParticipantsSpot.findOne({
-          userId: user.id,
+          user: user.id,
           eventId: id,
         });
         if (isSpot) {
@@ -666,11 +759,11 @@ class EventController {
         data = await Event.findByIdAndUpdate(
           { _id: id },
           {
-            $set: { ratingCalculated: averageRating }, // Set new rating
+            $set: { ratingCalculated: averageRating }, 
           },
           { new: true }
         )
-          .populate("owner")
+          .populate({ path: "owner", select: "-password" })
           .populate("participants")
           .populate("likes")
           .populate("images")
@@ -688,10 +781,10 @@ class EventController {
           .populate({
             path: "comments",
             populate: [
-              { path: "user", select: "_id name surname avatar" }, // Populate userId in comments
+              { path: "user", select: "_id name surname avatar" }, 
               {
-                path: "answer", // Populate the answer array
-                populate: { path: "userId", select: "name surname avatar" }, // Populate userId in the nested answer array
+                path: "answer", 
+                populate: { path: "user", select: "name surname avatar" }, 
               },
             ],
           })
@@ -702,58 +795,65 @@ class EventController {
         });
         data.isRating = isRating ? true : false;
         const isLike = await EventLike.findOne({
-          userId: user.id,
+          user: user.id,
           eventId: id,
         });
         data.isLike = isLike ? true : false;
         const isFavorite = await EventFavorites.findOne({
-          userId: user.id,
+          user: user.id,
           eventId: id,
         });
         data.isFavorite = isFavorite ? true : false;
         const isJoin = await EventParticipants.findOne({
-          userId: user.id,
+          user: user.id,
           eventId: id,
         });
         const timeMoscow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
 
         const eventTime = new Date(data.started_time);
         const dateNow = new Date(timeMoscow);
-        console.log("eventtime", eventTime);
-        console.log("datenow", dateNow);
 
         const timeDifference = eventTime - dateNow;
-        console.log("timedifference", timeDifference);
 
-        // Convert milliseconds to minutes
         const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
 
         if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
           data.hour = true;
-          console.log("The start time is less than an hour away.");
         }
-        // else if (differenceInMinutes <= 0) {
-        //   hour=false
-        //   console.log("The start time has already passed.");
-        // } else {
-        //   hour=false
-        //   console.log("The start time is more than an hour away.");
-        // }
+     
         if (isJoin) {
           data.joinStatus = 2;
         }
 
         const isSpot = await EventParticipantsSpot.findOne({
-          userId: user.id,
+          user: user.id,
           eventId: id,
         });
         if (isSpot) {
           data.joinStatus = 3;
         }
+        for (let i = 0; i < data.comments.length; i++) {
+          for (let z = 0; z < data.comments[i].answer.length; z++) {
+            const findLike = await EventCommentAnswerLike.findOne({
+              user: user.id,
+              answerId: data.comments[i].answer[z]._id,
+            });
+            if (findLike) {
+              data.comments[i].answer[z].isLike = true;
+            }
+          }
+          const findCommentLike = await EventCommentLikes.findOne({
+            user: user.id,
+            commentId: data.comments[i]._id,
+          });
+          if (findCommentLike) {
+            data.comments[i].isLike = true;
+          }
+        }
         res.status(200).send({ message: "success", data });
       }
     } else {
-      const resDb = await Event.findById(id);
+      const resDb = await Event.findById(id).populate("ratings").exec();
       function calculateAverageRating(ratings) {
         if (ratings.length === 0) return 0;
 
@@ -765,14 +865,15 @@ class EventController {
       }
 
       const averageRating = calculateAverageRating(resDb.ratings);
+
       data = await Event.findByIdAndUpdate(
         { _id: id },
         {
-          $set: { ratingCalculated: averageRating }, // Set new rating
+          $set: { ratingCalculated: averageRating }, 
         },
         { new: true }
       )
-        .populate("owner")
+        .populate({ path: "owner", select: "-password" })
         .populate("participants")
         .populate("likes")
         .populate("images")
@@ -786,10 +887,10 @@ class EventController {
         .populate({
           path: "comments",
           populate: [
-            { path: "user", select: "_id name surname avatar" }, // Populate userId in comments
+            { path: "user", select: "_id name surname avatar" }, 
             {
-              path: "answer", // Populate the answer array
-              populate: { path: "userId", select: "name surname avatar" }, // Populate userId in the nested answer array
+              path: "answer", 
+              populate: { path: "user", select: "name surname avatar" }, 
             },
           ],
         })
@@ -797,18 +898,13 @@ class EventController {
       const timeMoscow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
       const eventTime = new Date(data.started_time);
       const dateNow = new Date(timeMoscow);
-      console.log("eventtime", eventTime);
-      console.log("datenow", dateNow);
 
       const timeDifference = eventTime - dateNow;
-      // const timeDifference = data.started_time - timeMoscow;
 
-      // Convert milliseconds to minutes
       const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
 
       if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
         data.hour = true;
-        console.log("The start time is less than an hour away.");
       }
       //  else if (differenceInMinutes <= 0) {
       //   hour=false
@@ -817,10 +913,27 @@ class EventController {
       //   hour=false
       //   console.log("The start time is more than an hour away.");
       // }
+      // for (let i = 0; i < data.comments.length; i++) {
+      //   for (let z = 0; z < data.comments[i].answer.length; z++) {
+      //     const findLike = await EventCommentAnswerLike.findOne({
+      //       user: user.id,
+      //       answerId: data.comments[i].answer[z]._id,
+      //     });
+      //     if (findLike) {
+      //       data.comments[i].answer[z].isLike = true;
+      //     }
+      //   }
+      //   const findCommentLike = await EventCommentLikes.findOne({
+      //     user: user.id,
+      //     commentId: data.comments[i]._id,
+      //   });
+      //   if (findCommentLike) {
+      //     data.comments[i].isLike = true;
+      //   }
+      // }
       res.status(200).send({ message: "success", data });
     }
 
-    // return res.json(data);
   };
 
   eventImpressions = async (req, res) => {
@@ -832,7 +945,7 @@ class EventController {
       } else {
         events = await this.EventService.findOwnerImpressions(req.user.id);
       }
-  
+
       for (const event of events) {
         if (!isNaN(+event.status)) {
           event._doc.eventStatus = +event.status;
@@ -844,15 +957,14 @@ class EventController {
       console.error(error);
       res.status(500).send({ message: "Server error" });
     }
-
   };
 
   allEvent = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      if (authHeader&&authHeader!=="null") {
+      if (authHeader && authHeader !== "null") {
         const token = authHeader.split(" ")[1];
-  
+
         const user = jwt.decode(token);
         const result = await Event.find({
           owner: { $ne: user.id },
@@ -862,16 +974,15 @@ class EventController {
           const now = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
           const upcoming = [];
           const passed = [];
-  
+
           events.forEach((event) => {
-            // const eventDate = new Date(event.started_time);
             if (event.started_time > now) {
               upcoming.push(event);
             } else {
               passed.push(event);
             }
           });
-  
+
           return { upcoming, passed };
         }
         const separatedEvents = separateUpcomingAndPassed(result);
@@ -884,14 +995,12 @@ class EventController {
         }
         function calculateDistance(lat1, lon1, lat2, lon2) {
           const earthRadius = 6371; // Radius of the Earth in kilometers
-  
-          // Convert latitude and longitude from degrees to radians
+
           const latRad1 = (lat1 * Math.PI) / 180;
           const lonRad1 = (lon1 * Math.PI) / 180;
           const latRad2 = (lat2 * Math.PI) / 180;
           const lonRad2 = (lon2 * Math.PI) / 180;
-  
-          // Haversine formula
+
           const dLat = latRad2 - latRad1;
           const dLon = lonRad2 - lonRad1;
           const a =
@@ -902,23 +1011,21 @@ class EventController {
               Math.sin(dLon / 2);
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           const distance = earthRadius * c;
-  
-          return distance; // Distance in kilometers
+
+          return distance; 
         }
-  
-   
+
         const myLatitude = 55.7558;
         const myLongitude = 37.6176;
         result.forEach((meeting) => {
           meeting.kilometr = calculateDistance(
             myLatitude,
             myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
+            meeting.latitude,
+            meeting.longitude
           );
         });
-  
-        // separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+
         result.sort((a, b) => a.kilometr - b.kilometr);
         return res.status(200).send(result);
       } else {
@@ -930,16 +1037,15 @@ class EventController {
           const now = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
           const upcoming = [];
           const passed = [];
-  
+
           events.forEach((event) => {
-            // const eventDate = new Date(event.started_time);
             if (event.started_time > now) {
               upcoming.push(event);
             } else {
               passed.push(event);
             }
           });
-  
+
           return { upcoming, passed };
         }
         const separatedEvents = separateUpcomingAndPassed(result);
@@ -952,14 +1058,12 @@ class EventController {
         }
         function calculateDistance(lat1, lon1, lat2, lon2) {
           const earthRadius = 6371; // Radius of the Earth in kilometers
-  
-          // Convert latitude and longitude from degrees to radians
+
           const latRad1 = (lat1 * Math.PI) / 180;
           const lonRad1 = (lon1 * Math.PI) / 180;
           const latRad2 = (lat2 * Math.PI) / 180;
           const lonRad2 = (lon2 * Math.PI) / 180;
-  
-          // Haversine formula
+
           const dLat = latRad2 - latRad1;
           const dLon = lonRad2 - lonRad1;
           const a =
@@ -970,31 +1074,28 @@ class EventController {
               Math.sin(dLon / 2);
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           const distance = earthRadius * c;
-  
-          return distance; // Distance in kilometers
+
+          return distance; 
         }
-  
-  
+
         const myLatitude = 55.7558;
         const myLongitude = 37.6176;
         result.forEach((meeting) => {
           meeting.kilometr = calculateDistance(
             myLatitude,
             myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
+            meeting.latitude,
+            meeting.longitude
           );
         });
-  
-        // separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+
         result.sort((a, b) => a.kilometr - b.kilometr);
         return res.status(200).send(result);
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(500).send({ message: "Server error" });
     }
-
   };
   allFilter = async (req, res) => {
     try {
@@ -1007,18 +1108,16 @@ class EventController {
 
       const resultCategory = await EventCategory.find();
       if (authHeader) {
-        console.log("authHeader-event-allFilter", authHeader);
-        
+
         const token = authHeader.split(" ")[1];
-        console.log("token", token);
-        
+
         const user = jwt.decode(token);
-        console.log("user", user);
-        
+
         for (let i = 0; i < resultCategory.length; i++) {
           let obj = {};
           obj.category = resultCategory[i].name;
           obj.avatar = resultCategory[i].avatar;
+          obj.description = resultCategory[i].description;
           obj.id = resultCategory[i]._id;
           const resultEvent = await Event.find({
             category: resultCategory[i]._id,
@@ -1043,18 +1142,18 @@ class EventController {
           objNew.category_name = sortArray[x].category;
           objNew.id = sortArray[x].id;
           objNew.avatar = sortArray[x].avatar;
+          objNew.description = sortArray[x].description;
           categoryArray.unshift(objNew);
         }
         resultObj.category = categoryArray;
         return res.status(200).send(resultObj);
 
-        /////////////////////////////////////////
-       
       } else {
         for (let i = 0; i < resultCategory.length; i++) {
           let obj = {};
           obj.category = resultCategory[i].name;
           obj.avatar = resultCategory[i].avatar;
+          obj.description = resultCategory[i].description;
           obj.id = resultCategory[i]._id;
           const resultEvent = await Event.find({
             category: resultCategory[i]._id,
@@ -1079,6 +1178,7 @@ class EventController {
           objNew.category_name = sortArray[x].category;
           objNew.id = sortArray[x].id;
           objNew.avatar = sortArray[x].avatar;
+          objNew.description = sortArray[x].description;
           categoryArray.unshift(objNew);
         }
         resultObj.category = categoryArray;
@@ -1087,26 +1187,22 @@ class EventController {
       }
     } catch (error) {
       console.error(error);
-      res.status(500).send({message:"Server error"});
-
+      res.status(500).send({ message: "Server error" });
     }
   };
   radius = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      const { lon, lan } = req.body;
-
+      const { longitude, latitude } = req.body;
 
       function calculateDistance(lat1, lon1, lat2, lon2) {
         const earthRadius = 6371; // Radius of the Earth in kilometers
 
-        // Convert latitude and longitude from degrees to radians
         const latRad1 = (lat1 * Math.PI) / 180;
         const lonRad1 = (lon1 * Math.PI) / 180;
         const latRad2 = (lat2 * Math.PI) / 180;
         const lonRad2 = (lon2 * Math.PI) / 180;
 
-        // Haversine formula
         const dLat = latRad2 - latRad1;
         const dLon = lonRad2 - lonRad1;
         const a =
@@ -1118,11 +1214,11 @@ class EventController {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const distance = earthRadius * c;
 
-        return distance; // Distance in kilometers
+        return distance; 
       }
 
-      const myLatitude = lan;
-      const myLongitude = lon;
+      const myLatitude = latitude;
+      const myLongitude = longitude;
 
       if (!authHeader) {
         const pointsOfInterest = await Event.find();
@@ -1131,8 +1227,8 @@ class EventController {
           meeting.kilometr = calculateDistance(
             myLatitude,
             myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
+            meeting.latitude,
+            meeting.longitude
           );
         });
         pointsOfInterest.sort((a, b) => a.kilometr - b.kilometr);
@@ -1148,8 +1244,8 @@ class EventController {
           meeting.kilometr = calculateDistance(
             myLatitude,
             myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
+            meeting.latitude,
+            meeting.longitude
           );
         });
 
@@ -1163,10 +1259,10 @@ class EventController {
   };
 
   socket = async (req, res) => {
-    const db = await Event.findById("64ca48e2d8cb04f976150cf6");
+    const db = await Event.findById("6748282c568a9e88c540b206");
     notifEvent.emit(
       "send",
-      "ADMIN",
+      db.owner.toString(),
       JSON.stringify({ type: "Новая события", message: "event", data: db })
     );
 
@@ -1177,20 +1273,20 @@ class EventController {
     try {
       const authHeader = req.headers.authorization;
       // if (authHeader&&authHeader!=="null") {
-        const token = authHeader.split(" ")[1];
+      const token = authHeader.split(" ")[1];
 
-        const user = jwt.decode(token);
-        const userDb = await User.findById(user.id);
+      const user = jwt.decode(token);
+      const userDb = await User.findById(user.id);
 
-        if (userDb.eventNotif) {
-          userDb.eventNotif = false;
-          await userDb.save();
-        } else {
-          userDb.eventNotif = true;
-          await userDb.save();
-        }
+      if (userDb.eventNotif) {
+        userDb.eventNotif = false;
+        await userDb.save();
+      } else {
+        userDb.eventNotif = true;
+        await userDb.save();
+      }
 
-        return res.status(200).send({ message: "success" });
+      return res.status(200).send({ message: "success" });
       // } else {
       //   return res.status(401).send("Unauthorized");
       // }
@@ -1203,8 +1299,8 @@ class EventController {
   upcoming = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      const { lon, lan } = req.body;
-      if (authHeader&&authHeader!=="null") {
+      const { longitude, latitude } = req.body;
+      if (authHeader && authHeader !== "null") {
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
         const events = await Event.find({
@@ -1241,11 +1337,11 @@ class EventController {
         for (let z = 0; z < result.upcoming.length; z++) {
           const participant = await EventParticipants.findOne({
             eventId: result.upcoming[z]._id,
-            userId: user.id,
+            user: user.id,
           });
           const participantSpot = await EventParticipantsSpot.findOne({
             eventId: result.upcoming[z]._id,
-            userId: user.id,
+            user: user.id,
           });
           if (participant) {
             result.upcoming[z].joinStatus = 2;
@@ -1283,24 +1379,22 @@ class EventController {
           meeting.kilometr = calculateDistance(
             myLatitude,
             myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
+            meeting.latitude,
+            meeting.longitude
           );
         });
-
 
         result.upcoming.sort((a, b) => a.kilometr - b.kilometr);
         // passed.sort((a, b) => a.kilometr - b.kilometr);
         res.status(200).send({
           message: "success",
-          upcoming: result.upcoming,
+          data: result.upcoming,
           // passed: result.passed,
         });
       } else {
         const events = await Event.find({ status: 1 })
           .populate({ path: "category", select: "avatar name map_avatar" })
           .populate({ path: "images", select: "name" });
-        console.log(events, "events");
 
         function separateUpcomingAndPassed(events) {
           const now = new Date();
@@ -1356,16 +1450,16 @@ class EventController {
           meeting.kilometr = calculateDistance(
             myLatitude,
             myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
+            meeting.latitude,
+            meeting.longitude
           );
         });
         result.passed.forEach((meeting) => {
           meeting.kilometr = calculateDistance(
             myLatitude,
             myLongitude,
-            meeting.location.coordinates[0],
-            meeting.location.coordinates[1]
+            meeting.latitude,
+            meeting.longitude
           );
         });
 
@@ -1373,8 +1467,7 @@ class EventController {
         result.passed.sort((a, b) => a.kilometr - b.kilometr);
         res.status(200).send({
           message: "success",
-          upcoming: result.upcoming,
-          passed: result.passed,
+          data: result.upcoming,
         });
       }
     } catch (error) {
@@ -1388,24 +1481,54 @@ class EventController {
     try {
       const authHeader = req.headers.authorization;
       // if (authHeader&&authHeader!=="null") {
-        const token = authHeader.split(" ")[1];
-        const user = jwt.decode(token);
-        // const user = { id: "656ecb2e923c5a66768f4cd3" };
-        const { id } = req.body;
-        if (id) {
-          const participant = new EventParticipants({
-            userId: user.id,
-            eventId: id,
-            date: moment().tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-          });
-          await participant.save();
-          const result = await Event.findByIdAndUpdate(id, {
-            $push: { participants: participant._id },
-          });
-          return res.status(200).send({ message: "success" });
-        } else {
-          return res.status(401).send({ message: "Event not found" });
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
+      // const user = { id: "656ecb2e923c5a66768f4cd3" };
+      const { id } = req.body;
+      if (id) {
+        const participant = new EventParticipants({
+          user: user.id,
+          eventId: id,
+          date: moment().tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+        });
+        await participant.save();
+        const result = await Event.findByIdAndUpdate(id, {
+          $push: { participants: participant._id },
+        })
+          .populate("owner")
+          .populate("category");
+        const evLink = `alleven://eventDetail/${id}`;
+        const userDb = await User.findById(user.id);
+        const dataNotif = {
+          status: 2,
+          date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+          user: result.owner._id.toString(),
+          type: "participation",
+          message: `Пользователь ${userDb.name} присоединился к событию ${result.name}.`,
+          event: result._id,
+          link: evLink,
+        };
+        const nt = new Notification(dataNotif);
+        await nt.save();
+        if (result.owner.notifEvent) {
+          const UserDb = await User.findById(user.id);
+
+          notifEvent.emit(
+            "send",
+            result.owner._id.toString(),
+            JSON.stringify({
+              type: "participation",
+              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+              message: `Пользователь ${userDb.name} присоединился к событию ${result.name}.`,
+              categoryIcon: result.category.avatar, //sarqel
+              link: evLink,
+            })
+          );
         }
+        return res.status(200).send({ message: "success" });
+      } else {
+        return res.status(401).send({ message: "Event not found" });
+      }
       // } else {
       //   return res.status(401).send({ message: "Unauthorized" });
       // }
@@ -1418,23 +1541,52 @@ class EventController {
     try {
       const authHeader = req.headers.authorization;
       // if (authHeader&&authHeader!=="null") {
-        const token = authHeader.split(" ")[1];
-        const user = jwt.decode(token);
-        // const user = { id: "656ecb2e923c5a66768f4cd3" };
-        const { id } = req.body;
-        if (id) {
-          const participantSpot = new EventParticipantsSpot({
-            userId: user.id,
-            eventId: id,
-          });
-          await participantSpot.save();
-          const result = await Event.findByIdAndUpdate(id, {
-            $push: { participantsSpot: participantSpot._id },
-          });
-          return res.status(200).send({ message: "success" });
-        } else {
-          return res.status(401).send({ message: "Event not found" });
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
+      // const user = { id: "656ecb2e923c5a66768f4cd3" };
+      const { id } = req.body;
+      if (id) {
+        const participantSpot = new EventParticipantsSpot({
+          user: user.id,
+          eventId: id,
+        });
+        await participantSpot.save();
+        const result = await Event.findByIdAndUpdate(id, {
+          $push: { participantsSpot: participantSpot._id },
+        })
+          .populate({ path: "owner", select: "_id notifEvent" })
+          .populate("category");
+        const evLink = `alleven://eventDetail/${id}`;
+        const dataNotif = {
+          status: 2,
+          date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+          user: result.owner._id.toString(),
+          type: "participationSpot",
+          message: `Пользователь ${user.name} пришел на ваше событие ${result.name}. `,
+          categoryIcon: result.category.avatar,
+          event: result.category.avatar,
+          link: evLink,
+        };
+        const nt = new Notification(dataNotif);
+        await nt.save();
+        if (result.owner.notifEvent) {
+          notifEvent.emit(
+            "send",
+            result.owner._id.toString(),
+            JSON.stringify({
+              type: "participationSpot",
+              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+              message: `Пользователь ${user.name} пришел на ваше событие ${result.name}. `,
+              categoryIcon: result.category.avatar, //sarqel
+              link: evLink,
+            })
+          );
         }
+
+        return res.status(200).send({ message: "success" });
+      } else {
+        return res.status(401).send({ message: "id not found" });
+      }
       // } else {
       //   return res.status(401).send("Unauthorized");
       // }

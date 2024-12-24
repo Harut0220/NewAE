@@ -2,12 +2,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js"></script>
 
 <div id="events" class="max-height-auto" style="display: flex">
+    <div class="modal"><img src="/icon/icons8-verified-48.png" alt=""><span class="modalText"></span></div>
+
   <div class="eventMainBody">
     <div class="eventHead">
       <div class="eventHeadFirstPart">
         <p>
-          {{!-- <a href="/">Главная</a> &gt; --}}
-          {{!-- <a href="/admin/profile/events">События</a> &gt; --}}
+          <a href="/">Главная</a> &gt;
+          <a href="/admin/profile/meeting/page">Встречи</a> &gt;
         </p>
       </div>
       {{!--
@@ -38,9 +40,9 @@
                 Отклонить
               </button>
               <form action="/admin/profile/meet/resolve/{{getValue event "_id"}}"
-              method="POST" enctype="multipart/form-data">
+              method="POST" enctype="multipart/form-data" id="eventForm">
 
-              <button class="buttonAllow">
+              <button type="button" class="buttonAllow" onclick="buttonFunc()">
 {{#or (eq (getValue event "status") 0) (eq (getValue event "status") 2)}}
     Одобрить
 {{else}}
@@ -71,17 +73,28 @@
 
             <div class="changeEvBoxCont">
               <span>Цель встречи</span>
-              <input type="text" class="inputAllow" placeholder="Категория"
-              value="{{getValue event "purpose"}}"><br>
+              {{!-- <input type="text" class="inputAllow" placeholder="Категория"
+              value="{{getValue event "purpose"}}" name="purpose"> --}}
+                  <input type="text" class="inputAllow" name="purpose" value="{{getValue event "purpose"}}" required>
+
+              <br>
               <span>Описание</span>
-              <textarea class="inputAllowArea"
-              >{{getValue event "description"}}</textarea>
+              {{!-- <textarea class="inputAllowArea" --}}
+              {{!-- name="description">{{getValue event "description"}}</textarea> --}}
+                  <textarea class="inputAllowArea" name="description" required>{{getValue event "description"}}</textarea>
+
               <br><span>Aдрес</span>
-              <input type="text" class="inputAllow" placeholder="Aдрес встречи" value="{{getValue event 'address'}}"><br>
+              {{!-- <input type="text" class="inputAllow" placeholder="Aдрес встречи" value="{{getValue event 'address'}}" name="address"> --}}
+                  <input type="text" class="inputAllow" name="address" value="{{getValue event "address"}}" required>
+
+              <br>
               <span>Начало встречи</span>
-               <input type="text" class="inputAllow"
+               {{!-- <input type="text" class="inputAllow"
               placeholder="Категория" value="{{getValue event "date"}} {{getValue event "startTime"}}"
-              name="name"><br />
+              name="date"> --}}
+                  <input type="text" class="inputAllow" name="date" value="{{getValue event "date"}}" required>
+
+              <br />
               {{!-- <span>Конец присоединения встречи</span>
               <input type="text" class="inputAllow"
               placeholder="Категория" value="{{getValue event "openDate"}} {{getValue event "openTime"}}"
@@ -111,7 +124,7 @@
                   </svg>
                 </div>
                 {{!-- <input type="text" class="inputAllow" value="{{getValue
-                event "place_name"}}" name="name"> --}}
+                event "address"}}" name="name"> --}}
               </div>
               <br />
               {{!--
@@ -146,9 +159,9 @@
             </div>
             
           </div>
-{{#optionsFromArraysy images "_id" "path" urlPoint=urlPoint }}
-    <div class="changeEvDiv" style="background-image: url('{{url}}')">
-        <img src="/images/pics/GroupX.svg" class="removeButton" onclick="removeimage(this)" attr_id="{{value}}">
+{{#optionsFromArraysy images "_id" "path" }}
+    <div class="changeEvDiv" style="background-image: url('/{{path}}')">
+        <img src="/images/pics/GroupX.svg" class="removeButton" onclick="removeimage(this)" attr_id="{{id}}">
     </div>
 {{/optionsFromArraysy}}
         </div>
@@ -192,8 +205,8 @@
 
 <script src="../../public/js/axios.js"></script>
 <script>
-  //const geoCordLatit = {{getNestedValue event "coords.latit"}};
-  //const geoCordLotit = {{getNestedValue event "coords.longit"}};
+  //const geoCordLatit = {{getNestedValue event "latitude"}};
+  //const geoCordLotit = {{getNestedValue event "longitude"}};
   //const geoPath = `https://api.geoapify.com/v1/geocode/reverse?lat=${geoCordLatit}&lon=${geoCordLotit}&apiKey=5d33a1ddd9db4ee8862f3de928c21e89`;
   // axios.get(geoPath).then((d)=>{
   //  const al = document.getElementById('addressLine');
@@ -204,6 +217,18 @@
     let id = el.getAttribute("attr_id");
     el.parentNode.remove();
     axios.delete(`/admin/profile/meet/image/${id}`).then((d) => {});
+  }
+
+   function buttonFunc() {
+    // Տպում barev
+    const modal=document.querySelector('.modal');
+  modal.style.display = 'flex';
+ 
+    // 10 վայրկյան անց form-ը ուղարկելու ֆունկցիան
+    setTimeout(() => {
+      const form = document.getElementById('eventForm'); // Վերցնում ենք form-ը
+      form.submit(); // Ուղարկում ենք form-ը
+    }, 1000); // 10000 միլիվայրկյան = 10 վայրկյան
   }
 
   // Sample data

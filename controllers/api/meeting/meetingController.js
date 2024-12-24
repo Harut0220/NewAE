@@ -1,33 +1,108 @@
-import companyCategory from "../../../models/company/companyCategory.js";
 import meetingService from "../../../services/MeetingService.js";
-import NotificatationList from "../../../models/NotificationList.js";
 import Notification from "../../../models/Notification.js";
-import Role from "../../../models/Role.js";
 import meetingVerify from "../../../models/meeting/meetingVerify.js";
 import User from "../../../models/User.js";
 import meetingModel from "../../../models/meeting/meetingModel.js";
 import moment from "moment";
 import notifEvent from "../../../events/NotificationEvent.js";
-import MeetingParticipants from "../../../models/meeting/meetingParticipant.js";
 import jwt from "jsonwebtoken";
-import UserService from "../../../services/UserService.js";
 import meetingFavorit from "../../../models/meeting/meetingFavorit.js";
 import meetingComment from "../../../models/meeting/meetingComment.js";
 import meetingImages from "../../../models/meeting/meetingImages.js";
-import { stat } from "fs";
+import schedule from "node-schedule";
+import meetingImpressionImage from "../../../models/meeting/meetingImpressionImage.js";
 
 const meetingController = {
+  impressionImagesStore: async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
+      const { meeting_id, files } = req.body;
+      const serviceFunction = async () => {
+        const meetingImpressionImageDb = await meetingImpressionImage
+          .findOne({ meeting: meeting_id, user: user.id })
+          .populate({ path: "user", select: "name surname avatar" });
+        if (!meetingImpressionImageDb) {
+          const resultDb = new meetingImpressionImage({
+            user: user.id,
+            meeting: meeting_id,
+            path: files,
+          });
+          await resultDb.save();
+          await meetingModel.findByIdAndUpdate(meeting_id, {
+            $push: { impression_images: resultDb._id },
+          });
+          const result = await meetingImpressionImage
+            .findById(resultDb._id)
+            .populate({ path: "user", select: "name surname avatar" });
+          return { result, bool: false };
+        } else {
+          for (let i = 0; i < files.length; i++) {
+            meetingImpressionImageDb.path.push(files[i]);
+            await meetingImpressionImageDb.save();
+          }
+          const result = await meetingImpressionImage
+            .findById(meetingImpressionImageDb._id)
+            .populate({ path: "user", select: "name surname avatar" });
+          return { result, bool: true };
+        }
+      };
+
+      const result = await serviceFunction();
+      const data = await meetingImpressionImage
+        .findById(result.result._id)
+        .populate({ path: "user", select: "name surname avatar" });
+
+      const meetingDb = await meetingModel
+        .findById(meeting_id)
+        .populate({ path: "user", select: "_id notifMeeting" });
+      const evLink = `alleven://meetingDetail/${meeting_id}`;
+
+      const dataNotif = {
+        status: 2,
+        date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+        user: meetingDb.user._id.toString(),
+        type: "impression",
+        message: `Пользователь ${user.name} поделился впечатлением о встрече ${meetingDb.name}.`,
+        meeting: meeting_id,
+        link: evLink,
+      };
+      const nt = new Notification(dataNotif);
+      await nt.save();
+      if (meetingDb.user.notifMeeting) {
+        notifEvent.emit(
+          "send",
+          meetingDb.user._id.toString(),
+          JSON.stringify({
+            type: "impression",
+            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+            message: `Пользователь ${user.name} поделился впечатлением о встрече ${meetingDb.name}.`,
+            categoryIcon: meetingDb.category.avatar, //sarqel
+            link: evLink,
+          })
+        );
+      }
+
+      return res
+        .status(200)
+        .send({ updated: result.bool, success: true, data: result.result });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).send({ message: "An error occurred" });
+    }
+  },
   myParticipant: async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-        const token = authHeader.split(" ")[1];
-        const user = jwt.decode(token);
-        const result = await meetingService.myParticipant(user.id);
-        if (result) {
-          return res.status(200).send(result);
-        } else {
-          return res.status(404).send({ message: "Not found" });
-        }
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
+      const result = await meetingService.myParticipant(user.id);
+      if (result) {
+        return res.status(200).send(result);
+      } else {
+        return res.status(404).send({ message: "Not found" });
+      }
     } catch (error) {
       console.error(error);
       return res.status(500).send({ message: "An error occurred" });
@@ -51,16 +126,14 @@ const meetingController = {
   },
   destroy: async (req, res) => {
     const des_events = req.body.des_events;
-    console.log("des_events", typeof des_events);
-    console.log("des_events", des_events);
+  
 
     const result = await meetingService.destroy(des_events);
     return res.redirect("back");
   },
   destroyImage: async (req, res) => {
     const image = await meetingImages.findById(req.params.id);
-    console.log("image", image);
-    console.log("image.meetingId", image.meetingId);
+ 
 
     const result = await meetingModel.findByIdAndUpdate(
       image.meetingId,
@@ -68,19 +141,19 @@ const meetingController = {
       { new: true }
     );
     await image.delete();
-    console.log("deleted image");
 
     return res.redirect("back");
   },
   meetings: async (req, res) => {
     const authHeader = req.headers.authorization;
 
-    const { lon, lan } = req.query;
-    console.log("meeting req.query", req.query);
-    console.log("meetings lon-", lon, "lan-", lan, "authHeader-", authHeader);
+    const { longitude, latitude } = req.query;
 
-    // const user={id:"656ecb2e923c5a66768f4cd3"}
-    const result = await meetingService.meetings(authHeader, lon, lan);
+    const result = await meetingService.meetings(
+      authHeader,
+      longitude,
+      latitude
+    );
     return res.status(200).send(result);
   },
   deleteCommentAnswer: async (req, res) => {
@@ -89,7 +162,7 @@ const meetingController = {
     return res.status(200).send(result);
   },
   commentAnswerLike: async (req, res) => {
-    const authHeader=req.headers.authorization
+    const authHeader = req.headers.authorization;
     const token = authHeader.split(" ")[1];
     const user = jwt.decode(token);
     // const user = { id: "656ecb2e923c5a66768f4cd3" };
@@ -147,35 +220,38 @@ const meetingController = {
       const authHeader = req.headers.authorization;
 
       const result = await meetingService.myMeeting(authHeader);
-      
-     res.status(200).send(result);
+
+      res.status(200).send(result);
     } catch (error) {
       console.error(error);
     }
   },
   allMeeting: async (req, res) => {
     const authHeader = req.headers.authorization;
-    const { lon, lat } = req.body;
-    const result = await meetingService.allMeeting(authHeader, lon, lat);
+    const { longitude, latitude } = req.body;
+    const result = await meetingService.allMeeting(
+      authHeader,
+      longitude,
+      latitude
+    );
     res.status(200).send(result);
   },
   meetShow: async (req, res) => {
     const id = req.params.id;
     const meeting = await meetingModel
       .findById(id)
-      .populate("userId")
+      .populate({ path: "user", select: "-password" })
       .populate("images")
       .populate("participants");
     const template = "profile/meeting-show";
     const favorites = await meetingFavorit.find({
-      userId: meeting.userId._id,
+      user: meeting.user._id,
       meetingId: meeting.id,
     });
     const comments = await meetingComment
       .find({ meetingId: meeting.id })
-      .populate("userId")
+      .populate({ path: "user", select: "-password" })
       .populate("likes");
-    console.log(meeting.status, "status");
 
     res.render(template, {
       layout: "profile",
@@ -199,7 +275,6 @@ const meetingController = {
 
     const user = jwt.decode(token);
 
-    // const user = { id: "656ecb2e923c5a66768f4cd5" };
     const { id } = req.body;
     const result = await meetingService.like(user.id, id);
     res.status(200).send(result);
@@ -208,7 +283,6 @@ const meetingController = {
     try {
       const id = req.params.id;
       const data = req.body;
-      console.log("id", id, "status", data.status);
 
       const result = await meetingService.meetReject(id, data.status);
       const meetingDb = await meetingModel.findByIdAndUpdate(
@@ -217,7 +291,6 @@ const meetingController = {
         { new: true }
       );
 
-      console.log("meetingDb", meetingDb);
 
       res.redirect("back");
     } catch (error) {
@@ -244,43 +317,83 @@ const meetingController = {
   reject: async (req, res) => {
     let status = req.body.status;
     let event = await meetingService.reject(req.params.id, { status });
-    console.log("event", event);
-    const userMeet = await User.findById(event.userId);
+    const userMeet = await User.findById(event.user);
     const template = "profile/meeting-verify-rejected";
+
+    // const evLink = `alleven://eventDetail/${event_id}`;
+    // notifEvent.emit(
+    //   "send",
+    //   registerDb.user._id.toString(),
+    //   JSON.stringify({
+    //     type: "message",
+    //     date_time: moment
+    //       .tz(process.env.TZ)
+    //       .format("YYYY-MM-DD HH:mm"),
+    //     message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}`,
+    //     // categoryIcon: eventDb.category.avatar,//sarqel
+    //     link: evLink,
+    //   })
+    // );
+
+    localhost: 3000;
     res.render(template, {
       layout: "profile",
       title: "Verification",
       user: req.user,
-      event: event,
+      event,
       userMeet,
     });
   },
-  show: async (req, res) => {
+  edite: async (req, res) => {
     try {
       const id = req.params.id;
+      const event = await meetingModel.findById(id);
+      res.render("profile/meeting-edit", {
+        layout: "profile",
+        title: "Meeting Edit",
+        event,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  },
+  show: async (req, res) => {
+    try {
+      let data = req.body;
+
+      const id = req.params.id;
       let template = "profile/meeting-single";
-      const event = await meetingModel.findByIdAndUpdate(id,{$set:{status:1}}).populate("images");
-      const user = await User.findById(event.userId);
-      const urlPoint = { url: "http:/localhost:3000/" };
+      const event = await meetingModel
+        .findByIdAndUpdate(id, { $set: { status: 1 } })
+        .populate("images");
+      const user = await User.findById(event.user);
       if (event.status && event.status != 0 && event.status != 1) {
         template += "-rejected";
       }
-      console.log("event.images", event.images);
+      if (data.date || data.address || data.purpose || data.description) {
+        const editMeet = await meetingModel.findById(id);
+        editMeet.purpose = data.purpose;
+        editMeet.description = data.description;
+        editMeet.address = data.address;
+        editMeet.date = data.date;
+        await editMeet.save();
+      }
 
-      res.render(template, {
-        layout: "profile",
-        title: "Meeting Single",
-        status: event.status,
-        user: req.user,
-        userMeet: user,
-        event,
-        images: event.images,
-        participants: event.participants.length,
-        favorit: event.favorites.length,
-        urlPoint: "http:/localhost:3000/",
-        likes: event.likes.length,
-        view: event.view.length,
-      });
+      // res.render(template, {
+      //   layout: "profile",
+      //   title: "Meeting Single",
+      //   status: event.status,
+      //   user: req.user,
+      //   userMeet: user,
+      //   event,
+      //   images: event.images,
+      //   participants: event.participants.length,
+      //   favorit: event.favorites.length,
+      //   urlPoint: "http:/localhost:3000/",
+      //   likes: event.likes.length,
+      //   view: event.view.length,
+      // });
+      res.redirect("back");
     } catch (error) {
       console.error(error);
     }
@@ -293,11 +406,9 @@ const meetingController = {
 
       const user = jwt.decode(token);
 
-      // const user = { id: "656ecb2e923c5a66768f4cd4" };
 
       const { meetingId, text } = req.body;
       const result = await meetingService.addComment(user.id, meetingId, text);
-      console.log("result", result);
 
       res.status(200).send(result);
     } catch (error) {
@@ -325,7 +436,6 @@ const meetingController = {
       const authHeader = req.headers.authorization;
       const id = req.params.id;
 
-
       const result = await meetingService.near(id, authHeader);
       res.status(200).send(result);
     } catch (error) {
@@ -341,7 +451,6 @@ const meetingController = {
         .populate("images")
         .populate("participants");
 
-      console.log(event.participants);
 
       res.render(template, {
         layout: "profile",
@@ -357,16 +466,15 @@ const meetingController = {
   addParticipant: async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-        const token = authHeader.split(" ")[1];
+      const token = authHeader.split(" ")[1];
 
-        const user = jwt.decode(token);
+      const user = jwt.decode(token);
 
-        // const user = { id: "656ecb2e923c5a66768f4cd3" };
-        const { id } = req.body;
-        const result = await meetingService.addParticipant(user.id, id);
-        console.log(result, "result");
+      // const user = { id: "656ecb2e923c5a66768f4cd3" };
+      const { id } = req.body;
+      const result = await meetingService.addParticipant(user.id, id);
 
-        res.status(result.status).send({ message: result.message });
+      res.status(result.status).send({ message: result.message });
     } catch (error) {
       console.error(error);
     }
@@ -376,12 +484,11 @@ const meetingController = {
       const id = req.params.id;
       let template = "profile/meeting-single";
       const event = await meetingModel.findById(id).populate("images");
-      const user = await User.findById(event.userId);
+      const user = await User.findById(event.user);
       const urlPoint = { url: "http:/localhost:3000/" };
       if (event.status && event.status != 0 && event.status != 1) {
         template += "-rejected";
       }
-      console.log("event.images", event.images);
 
       res.render(template, {
         layout: "profile",
@@ -410,100 +517,38 @@ const meetingController = {
         { new: true }
       );
       const userDb = await User.findByIdAndUpdate(
-        resDb.userId,
-        { $set: { statusMeeting: "passed" } }, 
+        resDb.user,
+        { $set: { statusMeeting: "Verified" } },
         { new: true }
       );
       let template = "profile/meeting-verify-page";
 
       if (userDb.id) {
-        const store = async (data) => {
-          let ex_notif_type = false;
-          if (data.user && data.notif_type) {
-            const user = await this.UserService.findAndLean(data.user);
-            if (
-              user &&
-              user.list_of_notifications &&
-              user.list_of_notifications.length
-            ) {
-              for (let l = 0; l < user.list_of_notifications.length; l++) {
-                if (data.notif_type == user.list_of_notifications[l].name) {
-                  ex_notif_type = true;
-                  break;
-                }
-              }
-            }
-          }
-          const getNotificatationListByName = async (name) => {
-            return await NotificatationList.findOne({ name });
-          };
-          const notificationLists = await getNotificatationListByName(
-            data.notif_type
-          );
-
-          if (!ex_notif_type && notificationLists) {
-            return 1;
-          }
-
-          let roles = await Role.find({ name: data.sent }, { _id: 1 });
-          data.sent = roles;
-          return await Notification.create(data);
-        };
-
         const db = await meetingVerify
           .findOne({
-            userId: userDb.id,
+            user: userDb._id.toString(),
           })
-          .populate("userId");
+          .populate({ path: "user", select: "-password" });
 
-        const evLink = `alleven://eventDetail/${db._id}`;
-        await store({
+        const dataNotif = {
           status: 2,
           date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-          user: userDb.id,
-          type: "Новая встреча",
-          message: `Ваше событие ${userDb.id} находится на модерации`,
-          categoryIcon: "db.images[0]",
-          event: db._id,
-          link: evLink,
-        });
-
-        if (userDb.notifMeeting) {
-          notifEvent.emit(
-            "send",
-            userDb._id.toString(),
-            JSON.stringify({
-              type: "Новая встреча",
-              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-              message: `${userDb.name} ${userDb.surname} поздравляем модерация прошла успешно. Вы можете организовать встречу`,
-              link: evLink,
-            })
-          );
-        }
-
-        const pushInCollection = async (user_id, col_id, col_name) => {
-          let user = await User.findById(user_id);
-          user[col_name].push(col_id);
-          user.last_event_date = moment
-            .tz(process.env.TZ)
-            .format("YYYY-MM-DD HH:mm");
-          await user.save();
-          return 1;
+          user: userDb._id.toString(),
+          type: "confirm_passport",
+          message: `Ваша личность успешно подтверждена. Теперь вы можете создавать встречи.`,
         };
+        const nt = new Notification(dataNotif);
+        await nt.save();
+        notifEvent.emit(
+          "send",
+          userDb._id.toString(),
+          JSON.stringify({
+            type: "confirm_passport",
+            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+            message: `Ваша личность успешно подтверждена. Теперь вы можете создавать встречи.`,
+          })
+        );
 
-        await pushInCollection(userDb.id, db._id, "events");
-
-        // notifEvent.emit(
-        //   "send",
-        //   "ADMIN",
-        //   JSON.stringify({
-        //     type: "Новая встреча",
-        //     message: "event",
-        //     data: db,
-        //   })
-        // );
-
-     
         res.render(template, {
           layout: "profile",
           title: "Meeting Single",
@@ -511,10 +556,7 @@ const meetingController = {
           user: req.user,
           event: resDb,
         });
-        // Send response and return early to prevent further execution
-        // return res.status(200).send(result);
       } else {
-        // User ID is not defined
         res.status(400).send({ message: "User not defined" });
       }
     } catch (error) {
@@ -560,245 +602,44 @@ const meetingController = {
     try {
       const data = req.body;
       const authHeader = req.headers.authorization;
-      console.log(authHeader, "authHeader");
 
-      // const user = { id: "656ecb2e923c5a66768f4cd3" };
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
 
-        const token = authHeader.split(" ")[1];
-        const user = jwt.decode(token);
-        const userDb = await User.findById(user.id);
-        userDb.statusMeeting = "inProgress";
-        await userDb.save();
-        const result = await meetingService.verify(data, user.id);
-        const store = async (data) => {
-          let ex_notif_type = false;
-          if (data.user && data.type) {
-            const findAndLean = async (id) => {
-              return await User.findById(id)
-                .select(["-password", "-block", "-fcm_token"])
-                .populate([
-                  "event_categories",
-                  // "roles",
-                  "event_favorite_categories",
-                  "list_of_notifications",
-                  // {
-                  //   path: "meetings",
-                  //   options: { sort: { createdAt: "desc" } },
-                  //   populate: [
-                  //     "images",
-                  //     {
-                  //       path: "category",
-                  //       select: {
-                  //         name: 1,
-                  //         description: 1,
-                  //         status: 1,
-                  //         createdAt: 1,
-                  //         updaedAt: 1,
-                  //         avatar: 1,
-                  //         map_avatar: 1,
-                  //         categoryIcon: "$avatar",
-                  //       },
-                  //     },
-                  //     {
-                  //       path: "favorites",
-                  //       options: { sort: { createdAt: "desc" } },
-                  //       select: [
-                  //         "name",
-                  //         "surname",
-                  //         "email",
-                  //         "phone_number",
-                  //         "avatar",
-                  //       ],
-                  //     },
-                  //     {
-                  //       path: "likes",
-                  //       options: { sort: { createdAt: "desc" } },
-                  //       select: [
-                  //         "name",
-                  //         "surname",
-                  //         "email",
-                  //         "phone_number",
-                  //         "avatar",
-                  //       ],
-                  //     },
-                  //     {
-                  //       path: "participants",
-                  //       options: { sort: { createdAt: "desc" } },
-                  //       select: [
-                  //         "name",
-                  //         "surname",
-                  //         "email",
-                  //         "phone_number",
-                  //         "avatar",
-                  //       ],
-                  //     },
-                  //     {
-                  //       path: "participantsSpot",
-                  //       options: { sort: { createdAt: "desc" } },
-                  //       select: [
-                  //         "name",
-                  //         "surname",
-                  //         "email",
-                  //         "phone_number",
-                  //         "avatar",
-                  //       ],
-                  //     },
-                  //   ],
-                  // },
-                  // {
-                  //   path: "event_in_place",
-                  //   options: { sort: { createdAt: "desc" } },
-                  //   populate: [
-                  //     "images",
-                  //     {
-                  //       path: "category",
-                  //       select: {
-                  //         name: 1,
-                  //         description: 1,
-                  //         status: 1,
-                  //         createdAt: 1,
-                  //         updaedAt: 1,
-                  //         avatar: 1,
-                  //         map_avatar: 1,
-                  //         categoryIcon: "$avatar",
-                  //       },
-                  //     },
-                  //     {
-                  //       path: "favorites",
-                  //       options: { sort: { createdAt: "desc" } },
-                  //       select: [
-                  //         "name",
-                  //         "surname",
-                  //         "email",
-                  //         "phone_number",
-                  //         "avatar",
-                  //       ],
-                  //     },
-                  //     {
-                  //       path: "likes",
-                  //       options: { sort: { createdAt: "desc" } },
-                  //       select: [
-                  //         "name",
-                  //         "surname",
-                  //         "email",
-                  //         "phone_number",
-                  //         "avatar",
-                  //       ],
-                  //     },
-                  //     {
-                  //       path: "visits",
-                  //       options: { sort: { createdAt: "desc" } },
-                  //       select: [
-                  //         "name",
-                  //         "surname",
-                  //         "email",
-                  //         "phone_number",
-                  //         "avatar",
-                  //       ],
-                  //     },
-                  //     {
-                  //       path: "in_place",
-                  //       options: { sort: { createdAt: "desc" } },
-                  //       select: [
-                  //         "name",
-                  //         "surname",
-                  //         "email",
-                  //         "phone_number",
-                  //         "avatar",
-                  //       ],
-                  //     },
-                  //   ],
-                  // },
-                ])
-                .lean();
-            };
-            const user = await findAndLean(data.user);
-            if (
-              user &&
-              user.list_of_notifications &&
-              user.list_of_notifications.length
-            ) {
-              for (let l = 0; l < user.list_of_notifications.length; l++) {
-                if (data.notif_type == user.list_of_notifications[l].name) {
-                  ex_notif_type = true;
-                  break;
-                }
-              }
-            }
-          }
-          const getNotificatationListByName = async (name) => {
-            return await NotificatationList.findOne({ name });
-          };
-          const notificationLists = await getNotificatationListByName(
-            data.type
-          );
-
-          if (!ex_notif_type && notificationLists) {
-            return 1;
-          }
-
-          let roles = await Role.find({ name: data.sent }, { _id: 1 });
-          data.sent = roles;
-          return await Notification.create(data);
-        };
-
-        const db = await meetingVerify
-          .findOne({
-            userId: user.id,
-          })
-          .populate("userId");
-
-        const evLink = `alleven://eventDetail/${db._id}`;
-        await store({
-          status: 2,
-          date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-          user: user.id,
-          type: "Новая встреча",
-          message: `Ваше событие ${user.id} находится на модерации`,
-          categoryIcon: "db.images[0]",
-          event: db._id,
-          link: evLink,
+      const result = await meetingService.verify(data, user.id);
+      const userDb = await User.findById(user.id);
+      if (userDb.statusMeeting === "Verified") {
+        return res
+          .status(200)
+          .send({ message: "success", data: "Вы уже прошли модерацию " });
+      } else if (userDb.statusMeeting === "inProgress") {
+        return res.status(200).send({
+          message: "success",
+          data: "Вы уже прошли модерацию подаждите подвердение",
         });
-        if (userDb.notifMeeting) {
-          if (userDb.notifMeeting) {
-            notifEvent.emit(
-              "send",
-              userDb._id.toString(),
-              JSON.stringify({
-                type: "Новая встреча",
-                date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-                message: `Ваше событие ${db.purpose} находится на модерации`,
-                link: evLink,
-              })
-            );
-          }
-        }
+      }
+      userDb.statusMeeting = "inProgress";
+      await userDb.save();
 
-        const pushInCollection = async (user_id, col_id, col_name) => {
-          let user = await User.findById(user_id);
-          user[col_name].push(col_id);
-          user.last_event_date = moment
-            .tz(process.env.TZ)
-            .format("YYYY-MM-DD HH:mm");
-          await user.save();
-          return 1;
-        };
+      const db = await meetingVerify
+        .findOne({
+          user: user.id,
+        })
+        .populate({ path: "user", select: "-password -fcm_token" });
 
-        await pushInCollection(user.id, db._id, "events");
+      const evLink = `alleven://eventDetail/${db._id}`;
 
-        notifEvent.emit(
-          "send",
-          "ADMIN",
-          JSON.stringify({
-            type: "Новая встреча",
-            message: "event",
-            data: db,
-          })
-        );
+      notifEvent.emit(
+        "send",
+        "ADMIN",
+        JSON.stringify({
+          type: "Новая встреча",
+          message: "event",
+          data: db,
+        })
+      );
 
-        console.log("result", result);
-
-        return res.status(200).send(result);
+      return res.status(200).send(result);
     } catch (error) {
       console.error(error);
       return res.status(500).send({ message: "An error occurred" });
@@ -810,23 +651,132 @@ const meetingController = {
   addMeeting: async (req, res) => {
     try {
       const meeting = req.body;
-      console.log("meeting.date", meeting.date);
-      console.log("meeting", meeting);
-
       const authHeader = req.headers.authorization;
-        console.log(authHeader, "authHeader");
-        const token = authHeader.split(" ")[1];
-        const user = jwt.decode(token);
-        // const user = { id: "656ecb2e923c5a66768f4cd3" };
-        const phone = user.phone_number;
-        const userDb = await User.findById(user.id);
-        if (userDb.statusMeeting) {
-          const result = await meetingService.addMeeting(meeting, user.id, phone);
-          res.status(200).send(result);
-        } else {
-          res.status(400).send({ message: "пройти паспортную проверку" });
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
+
+      const userDb = await User.findById(user.id);
+      const phone = userDb.phone_number;
+      if (userDb.statusMeeting === "Verified") {
+        const result = await meetingService.addMeeting(meeting, user.id, phone);
+        const dat = result[1].date + ":00";
+
+        const eventTime = moment.tz(dat, process.env.TZ);
+
+        const notificationTime = eventTime.clone().subtract(1, "hour");
+  
+
+        const currentTime = moment.tz(process.env.TZ).format();
+  
+
+        async function sendMessage(idMeet) {
+          const meetingDb = await meetingModel
+            .findById(idMeet)
+            .populate({
+              path: "participants",
+              populate: { path: "user", select: "_id fcm_token" },
+            })
+            .populate("participantSpot")
+            .exec();
+          if (meetingDb) {
+            for (let i = 0; i < meetingDb.participants.length; i++) {
+              const element = meetingDb.participants[i].user;
+              if (element.fcm_token[0]) {
+                const evLink = `alleven://meetingDetail/${meetingDb._id}`;
+                const dataNotif = {
+                  status: 2,
+                  date_time: new Date(),
+                  user: element._id.toString(),
+                  type: "participation",
+                  message: `Ваше событие ${d.name} находится на модерации`,
+                  // categoryIcon: category.avatar,
+                  meeting: meetingDb._id,
+                  link: evLink,
+                };
+                const nt = new Notification(dataNotif);
+                await nt.save();
+                console.log(
+                  `Встреча ${meetingDb.purpose} начнется через час. Не пропустите.`
+                );
+                if (userDb.notifMeeting) {
+                  notifEvent.emit(
+                    "send",
+                    element._id,
+                    JSON.stringify({
+                      type: "participation",
+                      date_time: moment
+                        .tz(process.env.TZ)
+                        .format("YYYY-MM-DD HH:mm"),
+                      message: `Встреча ${meetingDb.purpose} начнется через час. Не пропустите.`,
+                      // categoryIcon: meetingDb.category.avatar,//sarqel
+                      link: evLink,
+                    })
+                  );
+                }
+              }
+            }
+          }
         }
 
+        schedule.scheduleJob(notificationTime.toDate(), () => {
+          sendMessage(result[1]._id.toString());
+        });
+        async function sendEventMessage(idMeetSpot) {
+          const meetingDb = await meetingModel
+            .findById(idMeetSpot)
+            .populate({
+              path: "participantSpot",
+              populate: { path: "user", select: "_id fcm_token" },
+            })
+            .exec();
+          if (meetingDb) {
+
+
+            for (let i = 0; i < meetingDb.participantSpot.length; i++) {
+              const element = meetingDb.participantSpot[i].user;
+              if (element.fcm_token[0]) {
+                const evLink = `alleven://meetingDetail/${meetingDb._id}`;
+                const dataNotif = {
+                  status: 2,
+                  date_time: moment
+                    .tz(process.env.TZ)
+                    .format("YYYY-MM-DD HH:mm"),
+                  user: element._id.toString(),
+                  type: "participationSpot",
+                  message: `Ваше событие ${d.name} находится на модерации`,
+                  // categoryIcon: category.avatar,
+                  meeting: meetingDb._id,
+                  link: evLink,
+                };
+                const nt = new Notification(dataNotif);
+                await nt.save();
+                console.log(`Встреча ${meetingDb.purpose} началось.`);
+
+                notifEvent.emit(
+                  "send",
+                  element._id.toString(),
+                  JSON.stringify({
+                    type: "participationSpot",
+                    date_time: moment
+                      .tz(process.env.TZ)
+                      .format("YYYY-MM-DD HH:mm"),
+                    message: `Встреча ${meetingDb.purpose} началось.`,
+                    // categoryIcon: meetingDb.category.avatar,//sarqel
+                    link: evLink,
+                  })
+                );
+              }
+            }
+          }
+        }
+        schedule.scheduleJob(eventTime.toDate(), () => {
+          sendEventMessage(result[1]._id.toString());
+        });
+
+        res.status(200).send(result[0]);
+      } else {
+        res.status(400).send({ message: "пройти паспортную проверку" });
+      }
     } catch (error) {
       console.error(error);
       res.status(500).send({ message: "An error occurred" });
@@ -847,29 +797,19 @@ const meetingController = {
     }
   },
   index: async (req, res) => {
-    const { name, category, date_from } = req.query;
+    const { name, date_from } = req.query;
     let params = {};
-    if (name) {
-      params.name = name;
-    }
 
-    if (category) {
-      params.category = category;
-    }
-
-    if (date_from) {
-      params.started_time = {
-        $gte: new Date(date_from).toISOString(),
-      };
-    }
     let eventCats = [];
-    const meetings = await meetingModel.find().populate("userId");
+    const meetings = await meetingModel
+      .find()
+      .sort({ createdAt: "desc" })
+      .populate("user");
     function separateUpcomingAndPassed(meetings) {
       const upcoming = [];
       const passed = [];
 
       meetings.forEach((meeting) => {
-
         if (
           meeting.date > moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm")
         ) {
@@ -890,9 +830,47 @@ const meetingController = {
         { new: true }
       );
     }
-    const meetingsRes = await meetingModel.find().populate("userId");
+    let meetingsRes;
+    if (name && date_from) {
+      params.purpose = name;
+      if (date_from) {
+        params.date = {
+          $gte: new Date(date_from).toISOString(),
+        };
+      }
+      meetingsRes = await meetingModel.find(params).populate("user");
+      // params.name = name;
+      // params.date_from = date_from;
+    }
 
-    console.log("req.query", req.query);
+    if (name) {
+      meetingsRes = await meetingModel
+        .find({ purpose: name })
+        .populate({ path: "user", select: "-password" });
+      params.name = name;
+    }
+
+    if (date_from) {
+      if (date_from) {
+        params.date = {
+          $gte: new Date(date_from).toISOString(),
+        };
+      }
+      meetingsRes = await meetingModel
+        .find(params)
+        .populate({ path: "user", select: "-password" });
+
+      // params.started_time = {
+      //   $gte: new Date(date_from).toISOString(),
+      // };
+    }
+
+    if (!name && !date_from) {
+      meetingsRes = await meetingModel
+        .find()
+        .populate({ path: "user", select: "-password" });
+    }
+
 
     res.render("profile/meeting", {
       layout: "profile",

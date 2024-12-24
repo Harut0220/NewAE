@@ -231,7 +231,6 @@ function generateDivMeet(data) {
 
 
 function generateDivComp(data) {
-  // console.log(data,"dataComp");
   
   return `<div class="allEvBoxCont">
     <div id="pics1">${generateImgComp(data.images)}</div>
@@ -262,7 +261,7 @@ function generateDivComp(data) {
       <p class="boxP"><span>Закрывается: </span>${data.endHour}</p>
       <p class="boxP"><span>Телефон:</span>${data.phoneNumbers[0].number}</p>
       <p class="boxP boxPflex">
-        <span>Место прохождения: ${data.place_name}</span>
+        <span>Место прохождения: ${data.address}</span>
         <img
           src="/images/pics/locationIcon.svg"
           style="cursor: pointer"

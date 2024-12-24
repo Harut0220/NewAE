@@ -69,7 +69,6 @@ class NotificationController{
 
     categories = async (req,res) => {
         let categories = await this.EventCategoryService.getInactive();
-        console.log(categories,'categories');
         
         res.render('profile/notification/categories',{ layout: 'profile', title: "Event Category", user:req.user,categories})
     }

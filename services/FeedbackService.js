@@ -13,7 +13,6 @@ class FeedbackService{
         await Feedback.findByIdAndUpdate(id, {
             $push: { sub_message: col_id}
         })
-        // console.log(id,col_id,col_name);
         // c[col_name].push(col_id);
         // await c.save()
         return 1;
@@ -35,10 +34,9 @@ class FeedbackService{
     //     // user
     //     // let feedback = await Feedback.create(data);
     //     if (!data.parent_id) {
-    //         console.log("store: ", data);
     //         const feedback = new NewFeedback();
 
-    //         feedback.participants.push({ userId: data.user });
+    //         feedback.participants.push({ user: data.user });
 
     //         const newMessage = {
     //             content: data.message,
@@ -55,7 +53,7 @@ class FeedbackService{
     //             console.log('Parent chat not found');
     //             return;
     //         }
-    //         parentChat.participants.push({ userId: data.user })
+    //         parentChat.participants.push({ user: data.user })
     //         const newMessage = {
     //             content: data.message,
     //             senderId: data.user
@@ -88,7 +86,7 @@ class FeedbackService{
     //     // return await feedback.populate(['parent','user']);
     // }
 
-    getByUserId = async (id) => {
+    getByuser = async (id) => {
         return await Feedback.find({parent:null,user:id}).sort({createdAt: 'desc'}).populate('sub_message').populate({
             path : 'user',
             select: { '_id': 1,'name':1,'avatar':1},

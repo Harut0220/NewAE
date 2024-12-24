@@ -44,23 +44,21 @@ class FavoriteController{
 
     favorite = async (req,res) => {
         const authHeader = req.headers.authorization;
-        // if(authHeader&&authHeader!=="null"){
             const token = authHeader.split(" ")[1];
         
             const user = jwt.decode(token);
-            // const user={id:"656ecb2e923c5a66768f4cd3"}
             const {id} = req.body;
             if(id){
-                const isFavorite=await EventFavorites.findOne({userId:user.id,eventId:id})
+                const isFavorite=await EventFavorites.findOne({user:user.id,eventId:id})
                 if(isFavorite){
                     
                     await Event.findByIdAndUpdate(id,{$pull:{favorites:isFavorite._id}})
                     await User.findByIdAndUpdate(user.id,{$pull:{event_favorites:id}})
                    await EventFavorites.findByIdAndDelete(isFavorite._id)
                     return res.json({'status':'success',"message":"remove favorite"})
-                }else {
+                }else{
                     const favorite=new EventFavorites({
-                        userId:user.id,
+                        user:user.id,
                         eventId:id
                     })
                     await favorite.save()
@@ -72,9 +70,7 @@ class FavoriteController{
             }else{
                 return res.json({'status':'error',"message":"error"})
             }
-        // }else{
-        //     return res.json({'status':'error',"message":"Unauthorized"})
-        // }
+    
 
 
 

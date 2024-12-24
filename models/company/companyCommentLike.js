@@ -3,7 +3,7 @@ const { Schema, model } = mongoose;
 
 const CompanyCommentLikes = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    user: { type: Schema.Types.ObjectId, ref: "User" },
     commentId: { type: Schema.Types.ObjectId, ref: "meeting_comment_answer" },
   },
   {

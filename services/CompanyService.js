@@ -3,45 +3,286 @@ import companyCategory from "../models/company/companyCategory.js";
 import Company from "../models/company/companyModel.js";
 import CompanyServiceModel from "../models/company/companyService.js";
 import Notification from "../models/Notification.js";
-import NotificatationList from "../models/NotificationList.js";
-import Role from "../models/Role.js";
 import User from "../models/User.js";
-import NotificatationListService from "./NotificationListService.js";
 import moment from "moment";
-
-// import UserService from "./UserService.js";
 import companyImage from "../models/company/companyImage.js";
 import mongoose from "mongoose";
 import companyPhones from "../models/company/companyPhones.js";
 import CompanyComment from "../models/company/companyComment.js";
-import CompanyLikes from "../models/company/companyLikes.js";
 import companyFavorit from "../models/company/companyFavorit.js";
 import companyRating from "../models/company/companyRating.js";
-import CompanyCommentLikes from "../models/company/companyCommentLike.js";
 import companyComment from "../models/company/companyComment.js";
 import companyCommentAnswer from "../models/company/companyCommentAnswer.js";
 import CommentAnswerLikes from "../models/company/companyCommentAnswerLike.js";
-import UserService from "./UserService.js";
+import companyCommentLike from "../models/company/companyCommentLike.js";
+import companyCommentAnswerLike from "../models/company/companyCommentAnswerLike.js";
+import companyLikes from "../models/company/companyLikes.js";
+import companyView from "../models/company/companyView.js";
+import servicesRegistrations from "../models/services/servicesRegistrations.js";
+import companyImpressionImages from "../models/company/companyImpressionImages.js";
+import companyHotDeals from "../models/company/companyHotDeals.js";
+import companyHotDealRegistrations from "../models/company/companyHotDealRegistration.js";
+import companyModel from "../models/company/companyModel.js";
+
 const companyService = {
+  // dealsRegisters: async (id) => {
+  //   const result = await companyHotDeals
+  //     .find({ companyId: id })
+  //     .populate({path:"registration",populate:{path:"user",select:"name surname avatar phone_number"}});
+  //   return result.registration;
+  // },
+  serviceUpdate: async (id, data) => {
+    const result = await CompanyServiceModel.findByIdAndUpdate(id, data, {
+      new: true,
+    });
+    return result;
+  },
+  deatRegister: async (dealId, userId) => {
+    const findHotDeal = await companyHotDeals.findById(dealId);
+    const dealRegister = new companyHotDealRegistrations({
+      dealId,
+      user: userId,
+      startTime: findHotDeal.date,
+    });
+    await dealRegister.save();
+    await companyHotDeals.findByIdAndUpdate(dealId, {
+      $push: { registration: dealRegister._id },
+    });
+    const companyDb = await Company.findByIdAndUpdate(findHotDeal.companyId, {
+      $push: { participants: userId },
+    });
+    return { success: true, message: "Успешно зарегистрировано" };
+  },
+  addHotDeals: async (companyId, description, cost, date) => {
+    const hotDeal = new companyHotDeals({
+      companyId,
+      description,
+      cost,
+      date,
+    });
+    await hotDeal.save();
+    const result = await Company.findOneAndUpdate(
+      companyId,
+      { $push: { hotDeals: hotDeal._id } },
+      { new: true }
+    );
+
+    return hotDeal;
+  },
+  companyEdit: async (data) => {
+    await companyImage.deleteMany({ companyId: data._id });
+    for (let i = 0; i < data.images.length; i++) {
+      const image = new companyImage({
+        url: data.images[i],
+        companyId: data._id,
+      });
+      await image.save();
+      await companyModel.findByIdAndUpdate(data._id, {
+        $push: { images: image._id },
+      });
+    }
+
+    await companyPhones.deleteMany({ companyId: data._id });
+    for (let i = 0; i < data.phoneNumbers.length; i++) {
+      const phone = new companyPhones({
+        phone: data.phoneNumbers[i],
+        companyId: data._id,
+      });
+      await phone.save();
+      await companyModel.findByIdAndUpdate(data._id, {
+        $push: { phoneNumbers: phone._id },
+      });
+    }
+    const newData = {};
+    newData.companyName = data.name;
+    newData.web = data.web;
+    newData.latitude = data.latitude;
+    newData.longitude = data.longitude;
+    newData.address = data.address;
+    newData.email = data.email;
+    newData.startHour = data.startHour;
+    newData.endHour = data.endHour;
+    newData.days = data.days;
+    const startTime = moment.tz(data.startHour, "HH:mm", process.env.TZ);
+    const endTime = moment.tz(data.endHour, "HH:mm", process.env.TZ);
+    if (startTime < endTime) {
+      newData.isNight = false;
+    } else {
+      newData.isNight = true;
+    }
+    const updatedCompany = await Company.findByIdAndUpdate(
+      data._id,
+      { ...newData, updatedAt: moment.tz(process.env.TZ).format() },
+      { new: true } 
+    );
+
+    return updatedCompany;
+  },
+  impressionImagesStore: async (companyId, path, user) => {
+    const companyImpressionImagesDb = await companyImpressionImages
+      .findOne({ companyId, user: user })
+      .populate({ path: "user", select: "name surname avatar" });
+    if (!companyImpressionImagesDb) {
+      const resultDb = new companyImpressionImages({
+        path,
+        user: user,
+        companyId,
+      });
+      await resultDb.save();
+      await Company.findByIdAndUpdate(companyId, {
+        $push: { impression_images: resultDb._id },
+      });
+      const result = await companyImpressionImages
+        .findById(resultDb._id)
+        .populate({ path: "user", select: "name surname avatar" });
+
+      return { result, bool: false };
+    } else {
+      for (let i = 0; i < path.length; i++) {
+        companyImpressionImagesDb.path.push(path[i]);
+        await companyImpressionImagesDb.save();
+      }
+      const result = await companyImpressionImages
+        .findById(companyImpressionImagesDb._id)
+        .populate({ path: "user", select: "name surname avatar" });
+      return { result, bool: true };
+    }
+  },
+  deleteService: async (id) => {
+    const serviceDb = await CompanyServiceModel.findById(id);
+    await companyModel.findByIdAndUpdate(serviceDb.companyId.toString(), {
+      $pull: { services: id },
+    });
+    await servicesRegistrations.deleteMany({ serviceId: id });
+    await CompanyServiceModel.findByIdAndDelete(id);
+    return { success: true, message: "Услуга удалена" };
+  },
+  destroyCompanyImage: async (id) => {
+    const dbCompanyImage = await companyImage.findById(id);
+    const dbCompany = await Company.findByIdAndUpdate(
+      dbCompanyImage.companyId,
+      {
+        $pull: { images: dbCompanyImage._id },
+      }
+    );
+    await companyImage.findByIdAndDelete(id);
+    return { success: true, message: "Успешно удалено" };
+  },
+  addImage: async (id, path) => {
+    const dbCompanyImage = new companyImage({ url: path, companyId: id });
+    await dbCompanyImage.save();
+    await companyImage.findByIdAndUpdate(id, {
+      $push: { images: dbCompanyImage._id },
+    });
+    return dbCompanyImage;
+  },
+  destroyCompany: async (des_events) => {
+    if (Array.isArray(des_events)) {
+      for (let i = 0; i < des_events.length; i++) {
+        const company = await Company.findById(des_events[i]);
+
+        if (!company) {
+          throw new Error("Event not found");
+        }
+
+        const comments = await companyComment.find({
+          companyId: des_events[i],
+        });
+
+        for (const comment of comments) {
+          await companyCommentLike.deleteMany({ commentId: comment._id });
+
+          const answers = await companyCommentAnswer.find({
+            commentId: comment._id,
+          });
+
+          for (const answer of answers) {
+            await companyCommentAnswerLike.deleteMany({ answerId: answer._id });
+          }
+
+          await companyCommentAnswer.deleteMany({ commentId: comment._id });
+        }
+
+        await companyComment.deleteMany({ companyId: des_events[i] });
+        await companyImage.deleteMany({ companyId: des_events[i] });
+        await companyLikes.deleteMany({ companyId: des_events[i] });
+        await companyFavorit.deleteMany({ companyId: des_events[i] });
+        await companyView.deleteMany({ companyId: des_events[i] });
+        await companyRating.deleteMany({ companyId: des_events[i] });
+        await companyPhones.deleteMany({ companyId: des_events[i] });
+        await CompanyServiceModel.deleteMany({ companyId: des_events[i] });
+        await companyImpressionImages.deleteMany({ companyId: des_events[i] });
+        await companyHotDeals.deleteMany({ companyId: des_events[i] });
+        const UserDb = await User.findById(company.owner.toString());
+        UserDb.company = null;
+        await UserDb.save();
+        await company.remove();
+        console.log("Company and all related data deleted successfully");
+      }
+    }
+    if (typeof des_events === "string") {
+      const company = await Company.findById(des_events);
+
+      if (!company) {
+        throw new Error("Meeting not found");
+      }
+
+      const comments = await companyComment.find({ companyId: des_events });
+
+      for (const comment of comments) {
+        await companyCommentLike.deleteMany({ commentId: comment._id });
+
+        const answers = await companyCommentAnswer.find({
+          commentId: comment._id,
+        });
+
+        for (const answer of answers) {
+          await companyCommentAnswerLike.deleteMany({ answerId: answer._id });
+        }
+
+        await companyCommentAnswer.deleteMany({ commentId: comment._id });
+      }
+
+      await companyComment.deleteMany({ companyId: des_events });
+      await companyImage.deleteMany({ companyId: des_events });
+      await companyLikes.deleteMany({ companyId: des_events });
+      await companyFavorit.deleteMany({ companyId: des_events });
+      await companyView.deleteMany({ companyId: des_events });
+      await companyRating.deleteMany({ companyId: des_events });
+      await companyPhones.deleteMany({ companyId: des_events });
+      await CompanyServiceModel.deleteMany({ companyId: des_events });
+      await companyHotDeals.deleteMany({ companyId: des_events });
+      await companyImpressionImages.deleteMany({ companyId: des_events });
+      const UserDb = await User.findById(company.owner.toString());
+      UserDb.company = null;
+      await UserDb.save();
+      await company.remove();
+
+      console.log("Company and all related data deleted successfully");
+    }
+    return { message: "success" };
+  },
   commentDelete: async (id) => {
     try {
       const commentDb = await companyComment.findById(id);
-    await commentDb.remove();
-    const commentAnswerDb = await companyCommentAnswer.find({ commentId: id });
-    await commentAnswerDb.remove();
-    const commentLikesDb = await CompanyCommentLikes.find({ commentId: id });
-    await commentLikesDb.remove();
-    const commentAnswerLikesDb = await CommentAnswerLikes.find({
-      answerId: commentAnswerDb[0]._id,
-    });
-    await commentAnswerLikesDb.remove();
-    const meetingDb = await Company.findByIdAndUpdate(
-      commentDb.companyId,
-      { $pull: { comments: commentDb._id } }
-    );
-      return ({
+      await commentDb.remove();
+      const commentAnswerDb = await companyCommentAnswer.find({
+        commentId: id,
+      });
+      await commentAnswerDb.remove();
+      const commentLikesDb = await companyCommentLike.find({ commentId: id });
+      await commentLikesDb.remove();
+      const commentAnswerLikesDb = await CommentAnswerLikes.find({
+        answerId: commentAnswerDb[0]._id,
+      });
+      await commentAnswerLikesDb.remove();
+      const meetingDb = await Company.findByIdAndUpdate(commentDb.companyId, {
+        $pull: { comments: commentDb._id },
+      });
+      return {
         success: true,
-        message: "Successfully deleted",});
+        message: "Successfully deleted",
+      };
     } catch (error) {
       console.error(error);
       return false;
@@ -51,13 +292,11 @@ const companyService = {
     try {
       await CommentAnswerLikes.deleteMany({ answerId: id });
       await companyCommentAnswer.findByIdAndDelete(id);
-      await companyComment.findByIdAndUpdate(
-        id,
-        { $pull: { answers: id } }
-      )
-      return ({
+      await companyComment.findByIdAndUpdate(id, { $pull: { answers: id } });
+      return {
         success: true,
-        message: "Successfully deleted",});
+        message: "Successfully deleted",
+      };
     } catch (error) {
       console.error(error);
       return false;
@@ -65,92 +304,19 @@ const companyService = {
   },
   onlinePage: async () => {
     try {
-      const companies = await Company.find({status: 1, onlinePay: true });
-      return companies;
+      const company = await Company.find({ status: 1, onlinePay: true });
+      return company;
     } catch (error) {
       console.error(error);
       return false;
     }
   },
-  online: async (userId, companyId) => {
+  online: async (user, companyId) => {
     try {
       const company = await Company.findById(companyId);
-      const store = async (data) => {
-        console.log(data, "data1");
-
-        let ex_notif_type = true;
-        if (data.user && data.notif_type) {
-          console.log(data, "data2");
-          const user = await UserService.findAndLeanCompany(data.user);
-          console.log(data, "data3");
-          if (
-            user &&
-            user.list_of_notifications &&
-            user.list_of_notifications.length
-          ) {
-            console.log(data, "data4");
-            for (let l = 0; l < user.list_of_notifications.length; l++) {
-              if (data.notif_type == user.list_of_notifications[l].name) {
-                ex_notif_type = true;
-                break;
-              }
-            }
-          }
-        }
-        const getNotificatationListByName = async (name) => {
-          const getByName = async (name) => {
-            return NotificatationList.findOne({ name });
-          };
-          return await getByName(name);
-        };
-        const notificationLists = await getNotificatationListByName(
-          data.notif_type
-        );
-
-        if (!ex_notif_type && notificationLists) {
-          return 1;
-        }
-
-        let roles = await Role.find({ name: data.sent }, { _id: 1 });
-        data.sent = roles;
-        return await Notification.create(data);
-      };
 
       const evLink = `alleven://eventDetail/${company._id}`;
-      await store({
-        status: 2,
-        date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss"),
-        user: userId,
-        type: "Онлайн оплата",
-        message: `Ваше событие ${company.companyName} находится на модерации`,
-        categoryIcon: "db.images[0]",
-        event: company._id,
-        link: evLink,
-      });
-      const categor = await companyCategory.find({ _id: company.category });
-      // notifEvent.emit(
-      //   "send",
-      //   company.owner.toString(),
-      //   JSON.stringify({
-      //     type: "Новая услуга",
-      //     date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss"),
-      //     message: `Ваше событие ${company.companyName} находится на модерации`,
-      //     categoryIcon: categor.image,
-      //     link: evLink,
-      //   })
-      // );
-      const pushInCollection = async (user_id, col_id, col_name) => {
-        let user = await User.findById(user_id);
-        user[col_name].push(col_id);
-        user.last_event_date = moment
-          .tz(process.env.TZ)
-          .format("YYYY-MM-DDTHH:mm");
-        await user.save();
-        return 1;
-      };
-
-      await pushInCollection(userId, company._id, "events");
-
+ 
 
       notifEvent.emit(
         "send",
@@ -167,40 +333,47 @@ const companyService = {
       return false;
     }
   },
-  commentAnswerLike: async (answerId, userId) => {
+  commentAnswerLike: async (answerId, user) => {
     try {
+
       const isLike = await CommentAnswerLikes.findOne({
-        user: userId,
+        user: user,
         answerId,
       });
       if (isLike) {
         await companyCommentAnswer.findByIdAndUpdate(answerId, {
           $pull: { likes: isLike._id },
         });
-        await CompanyCommentLikes.findByIdAndDelete(isLike._id);
-        return { message: "unlike" };
+        await companyCommentLike.findByIdAndDelete(isLike._id);
+        const answerLikeCount = await CommentAnswerLikes.find({ answerId });
+        return { message: "unlike", count: answerLikeCount.length };
       } else {
+        const date = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss");
         const commentAnswerLike = new CommentAnswerLikes({
-          user: userId,
+          user: user,
           answerId,
+          date,
         });
-        await commentLike.save();
-        await companyCommentAnswer.findByIdAndUpdate(commentId, {
+        await commentAnswerLike.save();
+        await companyCommentAnswer.findByIdAndUpdate(answerId, {
           $push: { likes: commentAnswerLike._id },
         });
-        return { message: "like" };
+        const answerLikeCount = await CommentAnswerLikes.find({ answerId });
+
+        return { message: "like", count: answerLikeCount.length };
       }
     } catch (error) {
       console.error(error);
       return false;
     }
   },
-  commentAnswer: async (commentId, userId, text) => {
+  commentAnswer: async (commentId, user, text) => {
     try {
+
       const comment = await CompanyComment.findById(commentId);
       const commentAnswer = new companyCommentAnswer({
         commentId,
-        userId,
+        user,
         text,
         companyId: comment.companyId,
         date: moment.tz(process.env.TZ).format(),
@@ -208,51 +381,95 @@ const companyService = {
       await commentAnswer.save();
       comment.answer.push(commentAnswer._id);
       await comment.save();
-      return { message: "success", answer: commentAnswer };
+      return commentAnswer;
     } catch (error) {
       console.error(error);
       return false;
     }
   },
-  commentLike: async (commentId, userId) => {
+  commentLike: async (commentId, user) => {
     try {
-      const isLike = await CompanyCommentLikes.findOne({ userId, commentId });
+      const isLike = await companyCommentLike.findOne({ user, commentId });
       if (isLike) {
         await companyComment.findByIdAndUpdate(commentId, {
           $pull: { likes: isLike._id },
         });
-        await CompanyCommentLikes.findByIdAndDelete(isLike._id);
-        return { message: "unlike" };
+        await companyCommentLike.findByIdAndDelete(isLike._id);
+        const commentLikeCount = await companyCommentLike.find({ commentId });
+        return { message: "unlike", count: commentLikeCount.length };
       } else {
-        const commentLike = new CompanyCommentLikes({ userId, commentId });
+        const commentLike = new companyCommentLike({ user, commentId });
         await commentLike.save();
-        await companyComment.findByIdAndUpdate(commentId, {
-          $push: { likes: commentLike._id },
-        });
-        return { message: "like" };
+        const commentDb = await companyComment.findById(commentId);
+        await commentDb.likes.push(commentLike._id);
+        await commentDb.save();
+        const commentLikeCount = await companyCommentLike.find({ commentId });
+
+        return { message: "like", count: commentLikeCount.length };
       }
     } catch (error) {
       console.log(error);
       return false;
     }
   },
-  rating: async (eventId, userId, rating) => {
+  rating: async (eventId, user, rating) => {
     try {
-      const rating = new companyRating({ eventId, userId, rating });
-      await rating.save();
-      await Company.findByIdAndUpdate(eventId, {
-        $push: { rating: rating._id },
+      const ifRating = await companyRating.findOne({
+        companyId: eventId,
+        user,
       });
-      return true;
+
+      if (ifRating) {
+        // await companyRating.findByIdAndDelete(ifRating._id)
+        // await Company.findByIdAndUpdate(eventId, {
+        //   $pull: { rating: ifRating._id },
+        // });
+        return {
+          success: false,
+          message: "вы уже оценили",
+        };
+      } else {
+        const date = moment.tz(process.env.TZ).format("YYYY-MM-DD");
+
+        const ratingDb = new companyRating({
+          companyId: eventId,
+          user,
+          rating,
+          date,
+        });
+        await ratingDb.save();
+        await Company.findByIdAndUpdate(eventId, {
+          $push: { ratings: ratingDb._id },
+        });
+        const ratings = await companyRating.find({ eventId }).lean();
+        function calculateAverageRating(ratings) {
+          if (ratings.length === 0) return 0;
+
+          const total = ratings.reduce((sum, rating) => sum + rating.rating, 0);
+
+          const average = total / ratings.length;
+
+          return Math.round(average * 10) / 10;
+        }
+        const averageRating = calculateAverageRating(ratings);
+        const newGet = await Company.findByIdAndUpdate(
+          eventId,
+          {
+            ratingCalculated: averageRating,
+          },
+          { new: true }
+        );
+        return { success: true, averageRating, ratings: newGet.ratings };
+      }
     } catch (error) {
       console.log(error);
       return false;
     }
   },
-  onlineReject: async (id,status) => {
+  onlineReject: async (id, status) => {
     try {
       const companyDb = await Company.findById(id)
-        .populate("owner")
+        .populate({ path: "owner", select: "-password" })
         .populate("category")
         .populate("images")
         .populate("services")
@@ -261,196 +478,29 @@ const companyService = {
       companyDb.onlineReason = status;
       await companyDb.save();
       const userDb = await User.find(companyDb.owner);
-      const store = async (data) => {
-        let ex_notif_type = false;
-        if (data.user && data.type) {
-          const findAndLean = async (id) => {
-            return await User.findById(id)
-              .select(["-password", "-block", "-fcm_token"])
-              .populate([
-                "event_categories",
-                // "roles",
-                "event_favorite_categories",
-                "list_of_notifications",
-                // {
-                // path: "companys",
-                // options: { sort: { createdAt: "desc" } },
-                // populate: [
-                //   "images",
-                //   // {
-                //   //   path: "category",
-                //   //   select: {
-                //   //     name: 1,
-                //   //     description: 1,
-                //   //     status: 1,
-                //   //     createdAt: 1,
-                //   //     updaedAt: 1,
-                //   //     avatar: 1,
-                //   //     map_avatar: 1,
-                //   //     categoryIcon: "$avatar",
-                //   //   },
-                //   // },
-                //   // {
-                //   //   path: "favorites",
-                //   //   options: { sort: { createdAt: "desc" } },
-                //   //   select: [
-                //   //     "name",
-                //   //     "surname",
-                //   //     "email",
-                //   //     "phone_number",
-                //   //     "avatar",
-                //   //   ],
-                //   // },
-                //   // {
-                //   //   path: "likes",
-                //   //   options: { sort: { createdAt: "desc" } },
-                //   //   select: [
-                //   //     "name",
-                //   //     "surname",
-                //   //     "email",
-                //   //     "phone_number",
-                //   //     "avatar",
-                //   //   ],
-                //   // },
-                //   // {
-                //   //   path: "visits",
-                //   //   options: { sort: { createdAt: "desc" } },
-                //   //   select: [
-                //   //     "name",
-                //   //     "surname",
-                //   //     "email",
-                //   //     "phone_number",
-                //   //     "avatar",
-                //   //   ],
-                //   // },
-                //   // {
-                //   //   path: "in_place",
-                //   //   options: { sort: { createdAt: "desc" } },
-                //   //   select: [
-                //   //     "name",
-                //   //     "surname",
-                //   //     "email",
-                //   //     "phone_number",
-                //   //     "avatar",
-                //   //   ],
-                //   // },
-                // ],
-                // },
-                // {
-                //   path: "event_in_place",
-                //   options: { sort: { createdAt: "desc" } },
-                //   populate: [
-                //     "images",
-                //     {
-                //       path: "category",
-                //       select: {
-                //         name: 1,
-                //         description: 1,
-                //         status: 1,
-                //         createdAt: 1,
-                //         updaedAt: 1,
-                //         avatar: 1,
-                //         map_avatar: 1,
-                //         categoryIcon: "$avatar",
-                //       },
-                //     },
-                //     // {
-                //     //   path: "favorites",
-                //     //   options: { sort: { createdAt: "desc" } },
-                //     //   select: [
-                //     //     "name",
-                //     //     "surname",
-                //     //     "email",
-                //     //     "phone_number",
-                //     //     "avatar",
-                //     //   ],
-                //     // },
-                //     // {
-                //     //   path: "likes",
-                //     //   options: { sort: { createdAt: "desc" } },
-                //     //   select: [
-                //     //     "name",
-                //     //     "surname",
-                //     //     "email",
-                //     //     "phone_number",
-                //     //     "avatar",
-                //     //   ],
-                //     // },
-                //     // {
-                //     //   path: "visits",
-                //     //   options: { sort: { createdAt: "desc" } },
-                //     //   select: [
-                //     //     "name",
-                //     //     "surname",
-                //     //     "email",
-                //     //     "phone_number",
-                //     //     "avatar",
-                //     //   ],
-                //     // },
-                //     // {
-                //     //   path: "in_place",
-                //     //   options: { sort: { createdAt: "desc" } },
-                //     //   select: [
-                //     //     "name",
-                //     //     "surname",
-                //     //     "email",
-                //     //     "phone_number",
-                //     //     "avatar",
-                //     //   ],
-                //     // },
-                //   ],
-                // },
-              ])
-              .lean();
-          };
-          const user = await findAndLean(data.user);
-          if (
-            user &&
-            user.list_of_notifications &&
-            user.list_of_notifications.length
-          ) {
-            for (let l = 0; l < user.list_of_notifications.length; l++) {
-              if (data.notif_type == user.list_of_notifications[l].name) {
-                ex_notif_type = true;
-                break;
-              }
-            }
-          }
-        }
-        const getNotificatationListByName = async (name) => {
-          return await NotificatationList.findOne({ name });
-        };
-        const notificationLists = await getNotificatationListByName(data.type);
-
-        if (!ex_notif_type && notificationLists) {
-          return 1;
-        }
-
-        let roles = await Role.find({ name: data.sent }, { _id: 1 });
-        data.sent = roles;
-        return await Notification.create(data);
-      };
+  
 
       const evLink = `alleven://eventDetail/${companyDb._id}`;
-      await store({
+
+      const dataNotif = {
         status: 2,
         date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-        user: userDb.id,
-        type: "Новая услуга",
-        message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}`,
-        categoryIcon: "db.images[0]",
-        event: companyDb._id,
+        user: userDb._id.toString(),
+        type: "Онлайн оплата",
+        message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}.`,
+        company: companyDb._id,
         link: evLink,
-      });
+      };
+      const nt = new Notification(dataNotif);
+      await nt.save();
 
       if (userDb.notifCompany) {
-        console.log("notif send user");
 
         notifEvent.emit(
           "send",
           userDb._id.toString(),
           JSON.stringify({
-            type: "Новая услуга",
+            type: "Онлайн оплата",
             date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
             message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}`,
             link: evLink,
@@ -458,17 +508,8 @@ const companyService = {
         );
       }
 
-      // const pushInCollection = async (user_id, col_id, col_name) => {
-      //   let user = await User.findById(user_id);
-      //   user[col_name].push(col_id);
-      //   user.last_event_date = moment().format("YYYY-MM-DDTHH:mm");
-      //   await user.save();
-      //   return 1;
-      // };
 
-      // await pushInCollection(userDb.id, companyDb._id, "services");
-      // console.log(companyDb,"companyDb");
-      
+
       return companyDb;
     } catch (error) {
       console.error(error);
@@ -477,7 +518,7 @@ const companyService = {
   reject: async (id, status) => {
     try {
       const companyDb = await Company.findById(id)
-        .populate("owner")
+        .populate({ path: "owner", select: "-password" })
         .populate("category")
         .populate("images")
         .populate("services")
@@ -486,212 +527,36 @@ const companyService = {
       companyDb.rejectMessage = status;
       await companyDb.save();
       const userDb = await User.find(companyDb.owner);
-      const store = async (data) => {
-        let ex_notif_type = false;
-        if (data.user && data.type) {
-          const findAndLean = async (id) => {
-            return await User.findById(id)
-              .select(["-password", "-block", "-fcm_token"])
-              .populate([
-                "event_categories",
-                // "roles",
-                "event_favorite_categories",
-                "list_of_notifications",
-                // {
-                // path: "companys",
-                // options: { sort: { createdAt: "desc" } },
-                // populate: [
-                //   "images",
-                //   // {
-                //   //   path: "category",
-                //   //   select: {
-                //   //     name: 1,
-                //   //     description: 1,
-                //   //     status: 1,
-                //   //     createdAt: 1,
-                //   //     updaedAt: 1,
-                //   //     avatar: 1,
-                //   //     map_avatar: 1,
-                //   //     categoryIcon: "$avatar",
-                //   //   },
-                //   // },
-                //   // {
-                //   //   path: "favorites",
-                //   //   options: { sort: { createdAt: "desc" } },
-                //   //   select: [
-                //   //     "name",
-                //   //     "surname",
-                //   //     "email",
-                //   //     "phone_number",
-                //   //     "avatar",
-                //   //   ],
-                //   // },
-                //   // {
-                //   //   path: "likes",
-                //   //   options: { sort: { createdAt: "desc" } },
-                //   //   select: [
-                //   //     "name",
-                //   //     "surname",
-                //   //     "email",
-                //   //     "phone_number",
-                //   //     "avatar",
-                //   //   ],
-                //   // },
-                //   // {
-                //   //   path: "visits",
-                //   //   options: { sort: { createdAt: "desc" } },
-                //   //   select: [
-                //   //     "name",
-                //   //     "surname",
-                //   //     "email",
-                //   //     "phone_number",
-                //   //     "avatar",
-                //   //   ],
-                //   // },
-                //   // {
-                //   //   path: "in_place",
-                //   //   options: { sort: { createdAt: "desc" } },
-                //   //   select: [
-                //   //     "name",
-                //   //     "surname",
-                //   //     "email",
-                //   //     "phone_number",
-                //   //     "avatar",
-                //   //   ],
-                //   // },
-                // ],
-                // },
-                // {
-                //   path: "event_in_place",
-                //   options: { sort: { createdAt: "desc" } },
-                //   populate: [
-                //     "images",
-                //     {
-                //       path: "category",
-                //       select: {
-                //         name: 1,
-                //         description: 1,
-                //         status: 1,
-                //         createdAt: 1,
-                //         updaedAt: 1,
-                //         avatar: 1,
-                //         map_avatar: 1,
-                //         categoryIcon: "$avatar",
-                //       },
-                //     },
-                //     // {
-                //     //   path: "favorites",
-                //     //   options: { sort: { createdAt: "desc" } },
-                //     //   select: [
-                //     //     "name",
-                //     //     "surname",
-                //     //     "email",
-                //     //     "phone_number",
-                //     //     "avatar",
-                //     //   ],
-                //     // },
-                //     // {
-                //     //   path: "likes",
-                //     //   options: { sort: { createdAt: "desc" } },
-                //     //   select: [
-                //     //     "name",
-                //     //     "surname",
-                //     //     "email",
-                //     //     "phone_number",
-                //     //     "avatar",
-                //     //   ],
-                //     // },
-                //     // {
-                //     //   path: "visits",
-                //     //   options: { sort: { createdAt: "desc" } },
-                //     //   select: [
-                //     //     "name",
-                //     //     "surname",
-                //     //     "email",
-                //     //     "phone_number",
-                //     //     "avatar",
-                //     //   ],
-                //     // },
-                //     // {
-                //     //   path: "in_place",
-                //     //   options: { sort: { createdAt: "desc" } },
-                //     //   select: [
-                //     //     "name",
-                //     //     "surname",
-                //     //     "email",
-                //     //     "phone_number",
-                //     //     "avatar",
-                //     //   ],
-                //     // },
-                //   ],
-                // },
-              ])
-              .lean();
-          };
-          const user = await findAndLean(data.user);
-          if (
-            user &&
-            user.list_of_notifications &&
-            user.list_of_notifications.length
-          ) {
-            for (let l = 0; l < user.list_of_notifications.length; l++) {
-              if (data.notif_type == user.list_of_notifications[l].name) {
-                ex_notif_type = true;
-                break;
-              }
-            }
-          }
-        }
-        const getNotificatationListByName = async (name) => {
-          return await NotificatationList.findOne({ name });
-        };
-        const notificationLists = await getNotificatationListByName(data.type);
-
-        if (!ex_notif_type && notificationLists) {
-          return 1;
-        }
-
-        let roles = await Role.find({ name: data.sent }, { _id: 1 });
-        data.sent = roles;
-        return await Notification.create(data);
-      };
+   
 
       const evLink = `alleven://eventDetail/${companyDb._id}`;
-      await store({
+      const dataNotif = {
         status: 2,
         date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-        user: userDb.id,
-        type: "Новая услуга",
-        message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}`,
-        categoryIcon: "db.images[0]",
-        event: companyDb._id,
+        user: userDb._id.toString(),
+        type: "Онлайн оплата",
+        message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}.`,
+        company: companyDb._id,
         link: evLink,
-      });
+      };
+      const nt = new Notification(dataNotif);
+      await nt.save();
 
       if (userDb.notifCompany) {
-        console.log("notif send user");
 
         notifEvent.emit(
           "send",
           userDb._id.toString(),
           JSON.stringify({
-            type: "Новая услуга",
+            type: "Онлайн оплата",
             date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-            message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}`,
+            message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}.`,
             link: evLink,
           })
         );
       }
 
-      // const pushInCollection = async (user_id, col_id, col_name) => {
-      //   let user = await User.findById(user_id);
-      //   user[col_name].push(col_id);
-      //   user.last_event_date = moment().format("YYYY-MM-DDTHH:mm");
-      //   await user.save();
-      //   return 1;
-      // };
 
-      // await pushInCollection(userDb.id, companyDb._id, "services");
       return companyDb;
     } catch (error) {
       console.error(error);
@@ -709,36 +574,54 @@ const companyService = {
     await company.save();
     return { message: "заявка одобрена" };
   },
-  addCompany: async (data, userId) => {
+  addCompany: async (data, user) => {
     try {
-      console.log(data, userId,"data, userId");
 
-      data.userId = userId;
-      const longit = data.coords.longit;
-      const latit = data.coords.latit;
+      data.user = user;
+      const longitude = data.longitude;
+      const latitude = data.latitude;
       const companyName = data.name;
-      const DB = await Company.findOne({ longit, latit, companyName});
+      const DB = await Company.findOne({ longitude, latitude, companyName });
       const categoryIf = await companyCategory.findById(data.category);
       async function addCompanyData(data) {
         const session = await mongoose.startSession();
         session.startTransaction();
 
         try {
-          const company = new Company({
-            category: mongoose.Types.ObjectId(data.category),
-            companyName: companyName,
-            web: data.web,
-            coords: data.coords,
-            place_name: data.place_name,
-            email: data.email,
-            startHour: data.startHour,
-            endHour: data.endHour,
-            days: data.days,
-            // rating: data.rating,
-            // kilometr: data.kilometr,
-            // status: data.status,
-            owner: userId,
-          });
+          const startTime = moment.tz(data.startHour, "HH:mm", process.env.TZ);
+          const endTime = moment.tz(data.endHour, "HH:mm", process.env.TZ);
+          let company;
+          if (startTime < endTime) {
+            company = new Company({
+              category: mongoose.Types.ObjectId(data.category),
+              companyName: companyName,
+              web: data.web,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              address: data.address,
+              email: data.email,
+              startHour: data.startHour,
+              endHour: data.endHour,
+              days: data.days,
+              owner: user,
+              isNight: false,
+            });
+          } else {
+            company = new Company({
+              category: mongoose.Types.ObjectId(data.category),
+              companyName: companyName,
+              web: data.web,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              address: data.address,
+              email: data.email,
+              startHour: data.startHour,
+              endHour: data.endHour,
+              days: data.days,
+              owner: user,
+              isNight: true,
+            });
+          }
           await company.save({ session });
 
           const imagePromises = data.images.map(async (url) => {
@@ -748,8 +631,8 @@ const companyService = {
             });
             return image.save({ session });
           });
-          await User.findByIdAndUpdate(userId, {
-            $push: { companies: company._id },
+          await User.findByIdAndUpdate(user, {
+            $set: { company: company._id },
           });
           const images = await Promise.all(imagePromises);
 
@@ -773,13 +656,9 @@ const companyService = {
               companyId: company._id,
             });
 
-
-
             return service.save({ session });
           });
           const services = await Promise.all(servicePromises);
-
-
 
           company.images = images.map((image) => image._id);
           company.phoneNumbers = phoneNumbers.map((phone) => phone._id);
@@ -808,8 +687,6 @@ const companyService = {
       if (!DB && categoryIf) {
         const resultBaza = await addCompanyData(data);
 
-
-
         return { message: "company added", company: resultBaza };
       }
 
@@ -818,24 +695,24 @@ const companyService = {
       console.error(error);
     }
   },
-  addFavorites: async (userId, companyId) => {
+  addFavorites: async (user, companyId) => {
     try {
-      const resFav = await companyFavorit.findOne({ userId, companyId });
+      const resFav = await companyFavorit.findOne({ user, companyId });
       if (!resFav) {
         const newFav = new companyFavorit({
-          userId,
+          user,
           companyId,
         });
         await newFav.save();
         await Company.findByIdAndUpdate(companyId, {
-          $push: { favorites: userId },
+          $push: { favorites: user },
         });
-        await User.findByIdAndUpdate(userId, {
+        await User.findByIdAndUpdate(user, {
           $push: { company_favorites: companyId },
         });
         return { message: "успешно добавлен в список избранных" };
       } else {
-        await User.findByIdAndUpdate(userId, {
+        await User.findByIdAndUpdate(user, {
           $pull: { company_favorites: companyId },
         });
         await Company.findByIdAndUpdate(companyId, {
@@ -856,8 +733,10 @@ const companyService = {
   //     console.error(error);
   //   }
   // },
-  addService: async (companyId, service) => {
+  addService: async (companyId, type, description, cost, images) => {
     try {
+  
+
       const company = await Company.findOne({ _id: companyId });
       // const imageArray = [];
       // for (let z = 0; i < service.length; z++) {
@@ -865,11 +744,11 @@ const companyService = {
       // }
 
       const serviceDb = new CompanyServiceModel({
-        type: service.type,
-        companyId: companyId,
-        description: service.description,
-        cost: service.cost,
-        images: service.images,
+        type,
+        companyId,
+        description,
+        cost,
+        images,
       });
       await serviceDb.save();
 
@@ -878,7 +757,7 @@ const companyService = {
 
       // await companyServiceMod.save()
 
-      return { message: "service added" };
+      return { message: "service added", data: serviceDb };
     } catch (error) {
       console.error(error);
     }
@@ -892,128 +771,134 @@ const companyService = {
   //     console.error(error);
   //   }
   // },
-  getMy: async (userId) => {
-    try {
-      const companies = await Company.find({ owner: userId });
-      const myLatitude = 55.7558;
-      const myLongitude = 37.6176;
-      function calculateDistance(lat1, lon1, lat2, lon2) {
-        const earthRadius = 6371;
+  // getMy: async (user) => {
+  //   try {
+  //     const company = await Company.find({ owner: user })
+  //       .populate("images")
+  //       .populate({ path: "services", populate: { path: "serviceRegister" } })
+  //       .populate("phoneNumbers")
+  //       .populate("category")
+  //       .populate({ path: "owner", select: "-password" })
+  //       .populate("likes")
+  //       .populate("hotDeals")
+  //       .populate("comments");
+  //     const myLatitude = 55.7558;
+  //     const myLongitude = 37.6176;
+  //     function calculateDistance(lat1, lon1, lat2, lon2) {
+  //       const earthRadius = 6371;
 
-        const latRad1 = (lat1 * Math.PI) / 180;
-        const lonRad1 = (lon1 * Math.PI) / 180;
-        const latRad2 = (lat2 * Math.PI) / 180;
-        const lonRad2 = (lon2 * Math.PI) / 180;
+  //       const latRad1 = (lat1 * Math.PI) / 180;
+  //       const lonRad1 = (lon1 * Math.PI) / 180;
+  //       const latRad2 = (lat2 * Math.PI) / 180;
+  //       const lonRad2 = (lon2 * Math.PI) / 180;
 
-        const dLat = latRad2 - latRad1;
-        const dLon = lonRad2 - lonRad1;
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos(latRad1) *
-            Math.cos(latRad2) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distance = earthRadius * c;
+  //       const dLat = latRad2 - latRad1;
+  //       const dLon = lonRad2 - lonRad1;
+  //       const a =
+  //         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+  //         Math.cos(latRad1) *
+  //           Math.cos(latRad2) *
+  //           Math.sin(dLon / 2) *
+  //           Math.sin(dLon / 2);
+  //       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  //       const distance = earthRadius * c;
 
-        return distance;
-      }
-      companies.forEach((company) => {
-        company.kilometr = calculateDistance(
-          myLatitude,
-          myLongitude,
-          company.coords.latit,
-          company.coords.longit
-        );
-      });
+  //       return distance;
+  //     }
+  //     company.forEach((company) => {
+  //       company.kilometr = calculateDistance(
+  //         myLatitude,
+  //         myLongitude,
+  //         company.latitude,
+  //         company.longitude
+  //       );
+  //     });
 
-      companies.sort((a, b) => a.kilometr - b.kilometr);
+  //     company.sort((a, b) => a.kilometr - b.kilometr);
 
-      let pastLikes;
-      let pastComment;
-      let view;
-      let favorites;
-      let pastParticipants;
-      let countAll = 0;
-      for (let i = 0; i < companies.length; i++) {
-        pastLikes = companies[i].likes.filter((like) => {
-          const parsedGivenDate = moment(like.date);
+  //     // let pastLikes;
+  //     // let pastComment;
+  //     // let view;
+  //     // let favorites;
+  //     // let pastParticipants;
+  //     // let countAll = 0;
+  //     // for (let i = 0; i < company.length; i++) {
+  //     //   pastLikes = company[i].likes.filter((like) => {
+  //     //     const parsedGivenDate = moment(like.date);
 
+  //     //     return parsedGivenDate.isAfter(company[i].changedStatusDate);
+  //     //   });
 
+  //     //   pastComment = company[i].comments.filter((like) => {
+  //     //     const parsedGivenDate = moment(like.date);
 
-          return parsedGivenDate.isAfter(companies[i].changedStatusDate);
-        });
+  //     //     return parsedGivenDate.isAfter(company[i].changedStatusDate);
+  //     //   });
 
-        pastComment = companies[i].comments.filter((like) => {
-          const parsedGivenDate = moment(like.date);
+  //     //   view = company[i].view.filter((like) => {
+  //     //     const parsedGivenDate = moment(like.date);
 
-          return parsedGivenDate.isAfter(companies[i].changedStatusDate);
-        });
+  //     //     return parsedGivenDate.isAfter(company[i].changedStatusDate);
+  //     //   });
 
-        view = resDb[i].view.filter((like) => {
-          const parsedGivenDate = moment(like.date);
+  //     //   favorites = company[i].favorites.filter((like) => {
+  //     //     const parsedGivenDate = moment(like.date);
 
-          return parsedGivenDate.isAfter(companies[i].changedStatusDate);
-        });
+  //     //     return parsedGivenDate.isAfter(company[i].changedStatusDate);
+  //     //   });
 
-        favorites = companies[i].favorites.filter((like) => {
-          const parsedGivenDate = moment(like.date);
+  //     //   pastParticipants = company[i].participants.filter((like) => {
+  //     //     const parsedGivenDate = moment(like.date);
 
-          return parsedGivenDate.isAfter(companies[i].changedStatusDate);
-        });
+  //     //     return parsedGivenDate.isAfter(resDb[i].changedStatusDate);
+  //     //   });
 
-        pastParticipants = companies[i].participants.filter((like) => {
-          const parsedGivenDate = moment(like.date);
+  //     //   let count =
+  //     //     pastLikes.length +
+  //     //     pastComment.length +
+  //     //     view.length +
+  //     //     pastParticipants.length +
+  //     //     favorites.length;
+  //     //   countAll = countAll + count;
+  //     //   if (favorites.length) {
+  //     //     company[i].changes.favorites = true;
+  //     //   }
+  //     //   if (pastLikes.length) {
+  //     //     company[i].changes.like = true;
+  //     //   }
+  //     //   if (pastComment.length) {
+  //     //     company[i].changes.comment = true;
+  //     //   }
+  //     //   if (pastParticipants.length) {
+  //     //     company[i].changes.participant = true;
+  //     //   }
+  //     //   if (view.length) {
+  //     //     company[i].changes.view = true;
+  //     //   }
+  //     //   if (count) {
+  //     //     company[i].changes.count = count;
+  //     //   }
+  //     //   await resDb[i].save();
+  //     // }
+  //     // const dateChange=await Company.find({ owner: user });
+  //     //  setTimeout(async () => {
+  //     //   for (let x = 0; x < dateChange.length; x++) {
+  //     //     dateChange[x].changes.comment = false;
+  //     //     dateChange[x].changes.like = false;
+  //     //     dateChange[x].changes.participant = false;
+  //     //     dateChange[x].changes.view = false;
+  //     //     dateChange[x].changes.favorites = false;
+  //     //     dateChange[x].changes.count = 0;
+  //     //     dateChange[x].changedStatusDate = moment.tz(process.env.TZ).format();
+  //     //     await dateChange[x].save();
+  //     //   }
+  //     // })
 
-          return parsedGivenDate.isAfter(resDb[i].changedStatusDate);
-        });
-
-        let count =
-          pastLikes.length +
-          pastComment.length +
-          view.length +
-          pastParticipants.length +
-          favorites.length;
-        countAll = countAll + count;
-        if (favorites.length) {
-          companies[i].changes.favorites = true;
-        }
-        if (pastLikes.length) {
-          companies[i].changes.like = true;
-        }
-        if (pastComment.length) {
-          companies[i].changes.comment = true;
-        }
-        if (pastParticipants.length) {
-          companies[i].changes.participant = true;
-        }
-        if (view.length) {
-          companies[i].changes.view = true;
-        }
-        if (count) {
-          companies[i].changes.count = count;
-        }
-        await resDb[i].save();
-      }
-      const dateChange=await Company.find({ owner: userId });
-       setTimeout(async () => {
-        for (let x = 0; x < dateChange.length; x++) {
-          dateChange[x].changes.comment = false;
-          dateChange[x].changes.like = false;
-          dateChange[x].changes.participant = false;
-          dateChange[x].changes.view = false;
-          dateChange[x].changes.favorites = false;
-          dateChange[x].changes.count = 0;
-          dateChange[x].changedStatusDate = moment.tz(process.env.TZ).format();
-          await dateChange[x].save();
-        }
-      })
-
-      return companies;
-    } catch (error) {
-      console.error(error);
-    }
-  },
+  //     return company;
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // },
 };
 
 export default companyService;

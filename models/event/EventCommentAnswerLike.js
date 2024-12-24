@@ -3,7 +3,6 @@ const { Schema,model } = mongoose;
 
 const EventAnswerLikes = new Schema({
   user:{type: Schema.Types.ObjectId, ref: 'User' },
-  commentId:{ type: Schema.Types.ObjectId, ref: 'event_comment' },
   answerId:{ type: Schema.Types.ObjectId, ref: 'event_comment_answer' },
   date:{type:String,
   required:true}

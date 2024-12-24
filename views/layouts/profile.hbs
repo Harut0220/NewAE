@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/styles/statistic.css" />
     <link rel="stylesheet" href="/styles/Notification.css" />
+    <link rel="stylesheet" href="https://chatapi.trigger.ltd/Public/manifest.json">
+
     {{!-- <link rel="stylesheet" href="../styles/profile.css"> --}}
     <title>{{title}}</title>
     <style>
@@ -225,7 +227,6 @@
 
       let pages_link = document.querySelectorAll(".pages_link"); for (let pl =0;
       pl < pages_link.length; pl++) {
-       // console.log("pages_link[pl]",pages_link[pl])
       if(location.href.includes(pages_link[pl].href)){
       pages_link[pl].classList.add("activeLink") } else
       if(location.href.includes("events")){

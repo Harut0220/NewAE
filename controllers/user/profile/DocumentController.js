@@ -29,17 +29,14 @@ class DocumentController{
     }
 
     store = async (req,res) => {
-        console.log(req.files);
         let p = await this.UploadService.storeSync(req.files.file,'docs',false)
         let newPath = await this.DocxService.index(p);
-        console.log(newPath,"newPath");
         
         this.UploadService.destroy(p);
         let data = {};
         data.path = newPath.newPath;
         data.text= newPath.text
         data.role = req.body.role
-        console.log("document----",data);
         
         if(data.role == 'all'){
             data.role = ['USER']

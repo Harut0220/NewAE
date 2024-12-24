@@ -3,6 +3,8 @@
 
 
 <div id="events" class="max-height-auto" style="display: flex;">
+    <div class="modal"><img src="/icon/icons8-verified-48.png" alt=""><span class="modalText"></span></div>
+
         <div class="eventMainBody">
           <div class="eventHead">
             <div class="eventHeadFirstPart">
@@ -29,9 +31,9 @@
                   <button class="buttonAllow whiteBtn" onclick="toggleModal('denyDiv','block')">
                     Отклонить
                   </button>
-                  <form action="/admin/profile/company/resolve/{{getValue event "_id"}}" method="POST" enctype="multipart/form-data">
+                  <form action="/admin/profile/company/resolve/{{getValue event "_id"}}" method="POST" enctype="multipart/form-data" id="eventForm">
                   
-                  <button class="buttonAllow">
+                  <button type="button" class="buttonAllow" onclick="buttonFunc()">
                     {{#or (eq (getValue event "status") 0) (eq (getValue event "status") 2)}}
     Одобрить
 {{else}}
@@ -74,7 +76,7 @@
                       <path fill-rule="evenodd" clip-rule="evenodd" d="M9.5 1.20781C5.22408 1.20781 1.79375 4.59711 1.79375 8.69967C1.79375 9.94188 2.21668 11.4224 2.93743 13.0131C3.65119 14.5884 4.61723 16.1859 5.61147 17.6382C7.21473 19.9801 8.84763 21.8817 9.5 22.6174C10.1524 21.8817 11.7853 19.9801 13.3885 17.6382C14.3828 16.1859 15.3488 14.5884 16.0626 13.0131C16.7833 11.4224 17.2063 9.94188 17.2063 8.69967C17.2062 4.5971 13.7759 1.20781 9.5 1.20781ZM9.78643 22.9357L9.78639 22.9357L9.78643 22.9357ZM9.5 14.2728C6.39416 14.2728 3.81909 11.8011 3.81909 8.69967C3.81909 5.59818 6.39423 3.1266 9.5 3.1266C12.6058 3.1266 15.1809 5.59826 15.1809 8.69971C15.1809 11.8012 12.6058 14.2728 9.5 14.2728ZM0.59375 8.69967C0.59375 3.90697 4.58907 0.0078125 9.5 0.0078125C14.4109 0.0078125 18.4062 3.90697 18.4062 8.69967C18.4062 14.6475 10.436 23.3794 10.0967 23.7482C9.77853 24.094 9.22204 24.0947 8.90331 23.7482C8.56397 23.3794 0.59375 14.6475 0.59375 8.69967ZM5.01909 8.69967C5.01909 11.111 7.02919 13.0728 9.5 13.0728C11.9708 13.0728 13.9809 11.1111 13.9809 8.69971C13.9809 6.28837 11.9708 4.3266 9.5 4.3266C7.02924 4.3266 5.01909 6.28832 5.01909 8.69967Z" fill="#00ADA6"/>
                     </svg>
                   </div>
-                  <input type="text" class="inputAllow"  value="{{getValue event "place_name"}}" name="name">
+                  <input type="text" class="inputAllow"  value="{{getValue event "address"}}" name="name">
                   </div>
                   <br>
                      <p>Фото интерьеров</p><br>
@@ -83,7 +85,7 @@
                     {{#if event}}
   {{#optionsFromArrays images "_id" "url" }}
     
-       <div class="changeEvDiv" style="background-image: url('http://localhost:3000/{{url}}')">
+       <div class="changeEvDiv" style="background-image: url('/{{url}}')">
        <img src="/images/pics/GroupX.svg" class="removeButton" onclick="removeimage(this)" attr_id="{{value}}">
     </div>
   {{/optionsFromArrays}}
@@ -102,7 +104,7 @@
                   <p>Контакти</p>
                 {{#optionsPhoneArrays phone_numbers "number" "telegram" "whatsApp"}}
                   <div class="phoneDiv">
-                      <img class="phoneVector" src="http://localhost:3000/fonts/phoneVector.png" alt="">
+                      <img class="phoneVector" src="/fonts/phoneVector.png" alt="">
                       <span>{{phone}}</span>
                   </div>
                       {{#if telegram}}
@@ -183,7 +185,7 @@
                 {{!-- <div class="allEvBox_box2">
                   <p class="changeHeadP">Место события</p>
                   <div class="flex_JC_Space-between">
-                    <p class="changeText" id="addressLine">{{event.place_name}}</p>
+                    <p class="changeText" id="addressLine">{{event.address}}</p>
                     <img src="/images/pics/locationIcon.svg" style="cursor: pointer">
                   </div>
                 </div> --}}
@@ -229,8 +231,8 @@
 
       <script src="../../public/js/axios.js"></script>
       <script>
-        //const geoCordLatit = {{getNestedValue event "coords.latit"}};
-        //const geoCordLotit = {{getNestedValue event "coords.longit"}};
+        //const geoCordLatit = {{getNestedValue event "latitude"}};
+        //const geoCordLotit = {{getNestedValue event "longitude"}};
         //const geoPath = `https://api.geoapify.com/v1/geocode/reverse?lat=${geoCordLatit}&lon=${geoCordLotit}&apiKey=5d33a1ddd9db4ee8862f3de928c21e89`;
         // axios.get(geoPath).then((d)=>{
         //  const al = document.getElementById('addressLine');
@@ -239,13 +241,23 @@
 
       function removeimage(el){
         let id = el.getAttribute('attr_id');
-        console.log("idnbs",id)
         el.parentNode.remove()
          axios.delete(`/admin/profile/company/image/${id}`).then((d)=>{
           
         })
       }
 
+       function buttonFunc() {
+    // Տպում barev
+    const modal=document.querySelector('.modal');
+  modal.style.display = 'flex';
+ 
+    // 10 վայրկյան անց form-ը ուղարկելու ֆունկցիան
+    setTimeout(() => {
+      const form = document.getElementById('eventForm'); // Վերցնում ենք form-ը
+      form.submit(); // Ուղարկում ենք form-ը
+    }, 1000); // 10000 միլիվայրկյան = 10 վայրկյան
+  }
         // Sample data
         const data = {
             title: 'My Handlebars Image',

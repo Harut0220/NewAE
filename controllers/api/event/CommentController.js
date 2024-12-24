@@ -5,6 +5,7 @@ import EventCommentAnswer from "../../../models/event/EventCommentAnswer.js";
 import EventCommentLikes from "../../../models/event/EventCommentLikes.js"
 import EventCommentService from "../../../services/EventCommentService.js"
 import jwt from "jsonwebtoken"
+import EventAnswerLikes from "../../../models/event/EventCommentAnswerLike.js"
 
 function getFormattedDate() {
     const date = new Date();
@@ -62,14 +63,14 @@ class CommentController{
         const authHeader=req.headers.authorization
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
-        // const user={id:"656ecb2e923c5a66768f4cd3"}
         let {id,text} = req.body
         
         if(!id || !text){
             return res.status(400).send({message:"id and text are required"})
         }
-        const comment =new EventComment({event:id,user:user.id,text,date:moment.tz(process.env.TZ).format()})
-        await comment.save()
+        const commentDb =new EventComment({event:id,user:user.id,text,date:moment.tz(process.env.TZ).format()})
+        await commentDb.save()
+        const comment=await EventComment.findById(commentDb._id).populate({path:"user",select:"name surname avatar"})
         await Event.findByIdAndUpdate(id,{$push:{comments:comment._id}})
         return res.json({'status':'success','data':comment});
     }
@@ -78,18 +79,19 @@ class CommentController{
         const authHeader=req.headers.authorization  
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
-        // const user={id:"656ecb2e923c5a66768f4cd3"}
         let {id} = req.body;
-        const isLike=await EventCommentLikes.findOne({userId:user.id,commentId:id})
+        const isLike=await EventCommentLikes.findOne({user:user.id,commentId:id})
         if(!isLike){
-            const commentLike=new EventCommentLikes({userId:user.id,commentId:id,date:getFormattedDate()})
+            const commentLike=new EventCommentLikes({user:user.id,commentId:id,date:getFormattedDate()})
             await commentLike.save()
             const comment=await EventComment.findByIdAndUpdate(id,{$push:{likes:commentLike._id}})
-            return res.status(200).send({message:"liked"})
+            const countDb=await EventCommentLikes.find({commentId:id})
+            return res.status(200).send({message:"liked",count:countDb.length})
         }else{
             const comment=await EventComment.findByIdAndUpdate(id,{$pull:{likes:isLike._id}})
             await EventCommentLikes.deleteOne({_id:isLike._id})
-            return res.status(200).send({message:"unliked"})
+            const countDb=await EventCommentLikes.find({commentId:id})
+            return res.status(200).send({message:"unliked",count:countDb.length})
         }
     }
 
@@ -97,19 +99,19 @@ class CommentController{
         const authHeader=req.headers.authorization
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);  
-        // const user={id:"656ecb2e923c5a66768f4cd3"}
         let {id,text} = req.body
-        const commentAnswer=new EventCommentAnswer({commentId:id,userId:user.id,text,date:getFormattedDate()})
+        
+        const commentAnswer=new EventCommentAnswer({commentId:id,user:user.id,text,date:moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss")})
         await commentAnswer.save()
+        const commentAnsw=await EventCommentAnswer.findById(commentAnswer._id).populate({path:"user",select:"name surname avatar"})
         const comment=await EventComment.findByIdAndUpdate(id,{$push:{answer:commentAnswer._id}})
-        return res.status(200).send({message:"success",data:commentAnswer});
+        return res.status(200).send({message:"success",answer:commentAnsw});
     }
 
     deleteComment = async (req,res) => {
         const authHeader=req.headers.authorization
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
-        // const user={id:"656ecb2e923c5a66768f4cd3"}
         let {id} = req.body
         const comment=await EventComment.findByIdAndDelete(id)
         await EventCommentAnswer.deleteMany({commentId:id})
@@ -122,18 +124,20 @@ class CommentController{
         const authHeader=req.headers.authorization
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
-        // const user={id:"656ecb2e923c5a66768f4cd3"}
-        let {commentId,answerId} = req.body
-        const isLike=await EventAnswerLikes.findOne({user:user.id,commentId:id})
+        let {answerId} = req.body
+        const isLike=await EventAnswerLikes.findOne({user:user.id,answerId})
         if(!isLike){
-            const commentLike=new EventAnswerLikes({user:user.id,answerId,commentId,date:getFormattedDate()})
+            const commentLike=new EventAnswerLikes({user:user.id,answerId,date:moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss")})
             await commentLike.save()
             const comment=await EventCommentAnswer.findByIdAndUpdate(answerId,{$push:{likes:commentLike._id}})
-            return res.status(200).send({message:"liked"})
+            const countDb=await EventAnswerLikes.find({answerId})
+            return res.status(200).send({message:"liked",count:countDb.length})
         }else{
             const comment=await EventCommentAnswer.findByIdAndUpdate(answerId,{$pull:{likes:isLike._id}})
             await EventAnswerLikes.deleteOne({_id:isLike._id})
-            return res.status(200).send({message:"unliked"})
+            const countDb=await EventAnswerLikes.find({answerId})
+
+            return res.status(200).send({message:"unliked",count:countDb.length})
         }
     }
 
@@ -141,7 +145,6 @@ class CommentController{
         const authHeader=req.headers.authorization
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
-        // const user={id:"656ecb2e923c5a66768f4cd3"}
         let {answerId} = req.body
         await EventAnswerLikes.deleteMany({answerId:answerId})
         await EventCommentAnswer.findByIdAndDelete(answerId)

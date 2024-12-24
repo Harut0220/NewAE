@@ -28,7 +28,7 @@
         <div class="allEvBoxCont ChangedAllEvBoxCont">
           <div id="personImgDiv">
             {{#if singleUser.avatar}}
-              <img src="/storage/{{singleUser.avatar}}" />
+              <img src="/{{singleUser.avatar}}" />
             {{else}}
               <img src="/images/profile/null_avatar.png" />
             {{/if}}
@@ -52,7 +52,7 @@
                     {{#each singleUser.event_favorites}}
                       <div class="swiper-slide square">
                         <img
-                          src="/storage/{{images.0.name}}"
+                          src="/{{images.0.name}}"
                           class="imgItem"
                           value="{{@index}}"
                           type="event_favorites"
@@ -78,7 +78,7 @@
                     {{#each singleUser.event_likes}}
                       <div class="swiper-slide square">
                         <img
-                          src="/storage/{{images.0.name}}"
+                          src="/{{images.0.name}}"
                           class="imgItem"
                           value="{{@index}}"
                           type="event_likes"

@@ -50,8 +50,6 @@ class UserController {
         let users = User.find(findObj).sort({ createdAt: "desc" });
         let usersCount = await User.countDocuments({ roles: r });
         users = await users.populate("roles").limit(limit).skip(skip).lean();
-        // console.log(users, "users");
-        // console.log(usersCount, "usersCount");
         
         
         return { users, usersCount };
@@ -64,7 +62,6 @@ class UserController {
       );
    
       
-      console.log(usersInfo.users, "usersInfo.users");
       
       view = "profile/moderator/users";
       res.render(view, {
@@ -80,7 +77,6 @@ class UserController {
       if (req.query.role) {
         roles = [req.query.role];
       }
-      console.log("admin login");
       const [users, organizers, visitors, moderators] = await Promise.all([
         this.UserService.getUsersByRole(roles, req.query),
         this.UserService.getUsersByRole(["USER"], req.query),
@@ -140,45 +136,37 @@ class UserController {
     const events = await Event.find({ owner: req.params.id })
       .populate("images")
       .populate("category")
-      .populate("owner")
+      .populate({path:"owner",select:"-password"})
       .lean();
       const meetings = await meetingModel.find({ owner: req.params.id })
       .populate("images")
-      .populate("userId")
+      .populate({path:"userId",select:"-password"})
       .lean();
 
-    const companies=await companyModel.find({ owner: req.params.id })
+    const company=await companyModel.find({ owner: req.params.id })
       .populate("images")
       .populate("category")
       .populate("phoneNumbers")
       .populate({path:"services",populate:{path:"serviceRegister",select:"serviceId date status userId text time"}})
       .lean();
     let view = "profile/users-profile/moderator";
-    // console.log(companies, "length");
     let partCount=0
-    for (let z = 0; z < companies.length; z++) {
-        // console.log(companies[z],"companies[z]");
+    for (let z = 0; z < company.length; z++) {
         
-        for (let x = 0; x < companies[z].services.length; x++) {
-            // console.log(companies[z].services[x],"companies[z].service[x]");
-            // console.log(companies[z].services[x].serviceRegister.length,"companies[z].service[x].serviceRegister.length");
+        for (let x = 0; x < company[z].services.length; x++) {
             
-            partCount=companies[z].services[x].serviceRegister.length+partCount
-            // console.log(companies[z].services[x].serviceRegister,"companies[z].services[x].serviceRegister");
+            partCount=company[z].services[x].serviceRegister.length+partCount
             
-            // for (let e = 0; e < companies[z].services[x].serviceRegister.length; e++) {
+            // for (let e = 0; e < company[z].services[x].serviceRegister.length; e++) {
             //   partCount++
-            //   console.log(partCount,"partCount12");
               
             // }
         }
-        companies[z].participantsCount=partCount
+        company[z].participantsCount=partCount
         
     }
-    // console.log(partCount,"partCount");
     
-    // for (let i = 0; i < companies.services.length; i++) {
-    //     console.log(companies.services[i],"companies.services[i]");
+    // for (let i = 0; i < company.services.length; i++) {
 
     // }
       
@@ -190,10 +178,9 @@ class UserController {
     // }
 
     if (req.query.type && req.query.type == "json") {
-      return res.json({ dataEvent: events,dataMeet:meetings,dataComp:companies });
+      return res.json({ dataEvent: events,dataMeet:meetings,dataComp:company });
     }
 
-    // console.log(singleUser.events ,"singleUser.events");
 
     res.render(view, {
       layout: "profile",
@@ -203,7 +190,7 @@ class UserController {
       event_categories: singleUser.event_categories,
       events,
       meetings,
-      companies,
+      company,
     });
   };
 
@@ -230,7 +217,6 @@ class UserController {
 
   destroy = async (req, res) => {
     let user = await this.UserService.destroy(req.params.id);
-    console.log(user);
     return res.redirect("back");
   };
 

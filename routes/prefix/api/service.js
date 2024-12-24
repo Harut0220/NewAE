@@ -1,22 +1,34 @@
 import { Router } from "express";
 import servicesController from "../../../controllers/api/service/servicesController.js";
 import { isEmpParamObjId } from "../../../middlewares/isEmpty.js";
+import newAuthJWT from "../../../middlewares/newAuthJWT.js";
 
+const serviceRouter = Router();
 
-const serviceRouter=Router()
+serviceRouter.post("/register",newAuthJWT, servicesController.registr);
 
-serviceRouter.post("/register",servicesController.registr)
-serviceRouter.post("/confirm",servicesController.confirm)
-serviceRouter.post("/editeRegistr",servicesController.editeRegistr)
-serviceRouter.get("/near/:id",isEmpParamObjId,servicesController.near)
-// serviceRouter.delete("/registr",servicesController.deleteRegistr)
-serviceRouter.post("/edite",servicesController.editeService)
+serviceRouter.get("/free/times", servicesController.freeTimes);
 
-serviceRouter.get("/registers",servicesController.registers)
-serviceRouter.get("/my_registers")
-// serviceRouter.get("/my_service/register")
+serviceRouter.post("/confirm",newAuthJWT, servicesController.confirm);
 
+serviceRouter.post("/edite/register", servicesController.editeRegistr);
 
+serviceRouter.get("/near/:id", isEmpParamObjId, servicesController.near);
 
+serviceRouter.delete("/delete/register", servicesController.deleteRegistr);
+
+// serviceRouter.post("/edite",servicesController.editeService)
+
+serviceRouter.get(
+  "/registers/:companyId",
+  newAuthJWT,
+  servicesController.registers
+);
+
+serviceRouter.get("/my_registers");
+
+serviceRouter.post("/edit", servicesController.edite);
+
+serviceRouter.get("/times/:id", servicesController.times);
 
 export default serviceRouter;

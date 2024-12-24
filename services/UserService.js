@@ -30,7 +30,7 @@ class UserService {
     return users;
   };
 
-  getRoleByUserId = async (id) => {
+  getRoleByuser = async (id) => {
     const user = await User.findById(id)
       .select("roles")
       .populate("roles")
@@ -156,13 +156,14 @@ class UserService {
     await user.updateOne({ block: !user.block });
     await user.save();
     console.log("block or unblock");
-    
-    await transporter.sendMail({
-      from: process.env.MAIL_USERNAME,
-      to: user.email,
-      subject: "Hello",
-      template: "confirm-user",
-    });
+
+    // await transporter.sendMail({
+    //   from: process.env.MAIL_USERNAME,
+    //   to: user.email,
+    //   subject: "Hello",
+    //   template: "confirm-user",
+    // });
+
     return user;
   };
 
@@ -177,7 +178,6 @@ class UserService {
     password,
     role = "USER"
   ) => {
-    // console.log( phone_number,"-", name,"-", surname,"-", imagePath,"-", role,"-", password,"-", );
 
     // let password="12345678"
     const r = await Role.findOne({ name: role });
@@ -215,9 +215,7 @@ class UserService {
     password,
     role = "USER"
   ) => {
-    // console.log( phone_number,"-", name,"-", surname,"-", imagePath,"-", role,"-", password,"-", );
 
-    // let password="12345678"
     const r = await Role.findOne({ name: role });
     let salt = bcrypt.genSaltSync(8);
     password = bcrypt.hashSync(password, salt);
@@ -247,8 +245,7 @@ class UserService {
   };
 
   find = async (id) => {
-    console.log(id, "id");
-    
+
     const user = await User.findById(id)
       .select(["-password", "-block", "-fcm_token"])
       .populate([
@@ -272,7 +269,7 @@ class UserService {
                 map_avatar: 1,
                 categoryIcon: "$avatar",
               },
-            }
+            },
             // {
             //   path: "favorites",
             //   options: { sort: { createdAt: "desc" } },
@@ -296,15 +293,12 @@ class UserService {
           ],
         },
       ]);
-      console.log(user, "user");
-      
-      return user
+
+    return user;
   };
 
   findAndLeanCompany = async (id) => {
-    console.log(id, "findAndLeanCompany,id");
-    console.log("findAndLeanCompany");
-    
+
     return await User.findById(id)
       .select(["-password", "-block", "-fcm_token"])
       .populate([
@@ -416,16 +410,12 @@ class UserService {
 
   destroyFromCollection = async (user_id, col_id, col_name) => {
     let user = await this.find(user_id);
-    console.log("user", user_id);
-   console.log("col_id", col_id);
-   console.log("col_name", col_name);
-   
     
+
     if (user && user[col_name]) {
       user[col_name].remove(col_id);
       await user.save();
-      console.log(user[col_name],"user[col_name]");
-      
+
       return user[col_name];
     }
   };
@@ -540,64 +530,152 @@ class UserService {
 
   getCountNotif = async (id) => {
     const usr = await this.find(id);
+    console.log(usr.name, "usr count notif");
+
     const usrNotifCount = await Notification.find({
       $or: [
         { sent: usr.roles._id, status: 2, read: { $ne: usr._id } },
         { user: usr._id, status: 2, read: { $ne: usr._id } },
       ],
     }).lean();
+    console.log(usrNotifCount.length, "usr notif count baza");
+
     return usrNotifCount.length ? usrNotifCount.length : 0;
   };
+
+  //stexinna
+  ////////////////////////////////////////////////////////////////
+
+  // sendPushNotif = async (id, data) => {
+  
+
+  //   const notifConut = await this.getCountNotif(id);
+  //   const d = JSON.parse(data);
+  //   const tokens = await this.getFcmTokens(id);
+
+  //   if (tokens && tokens.length) {
+  //     // const condition = "'stock-GOOG' in topics || 'industry-tech' in topics";
+  //     const message = {
+  //       data: {
+  //         link: d.link ? d.link : "",
+  //         categoryIcon: d.categoryIcon ? d.categoryIcon : "",
+  //       },
+  //       tokens: tokens,
+  //       notification: {
+  //         title: "AllEven",
+  //         body: d.message,
+  //         // badge: "1"
+  //       },
+  //       apns: {
+  //         payload: {
+  //           aps: {
+  //             badge: notifConut,
+  //           },
+  //         },
+  //       },
+  //       // condition: condition,
+  //     };
+  //     console.log(message,"message push notif sended");
+
+  //     admin
+  //       .messaging()
+  //       .sendMulticast(message)
+  //       .then((response) => {
+  //         console.log(
+  //           response.successCount + " messages were sent successfully"
+  //         );
+  //       })
+  //       .catch((e) => {
+  //         console.log(e);
+  //         admin
+  //           .messaging()
+  //           .sendMulticast(message)
+  //           .then((response) => {
+  //             console.log(
+  //               response.successCount + " messages were sent successfully"
+  //             );
+  //           })
+  //           .catch((e) => {
+  //             console.log(e);
+  //           });
+  //       });
+  //   }
+  // };
+
+  //////////////////////////////////////////////////////////////////////
+  //stexinna
 
   sendPushNotif = async (id, data) => {
     const notifConut = await this.getCountNotif(id);
     const d = JSON.parse(data);
     const tokens = await this.getFcmTokens(id);
-    if (tokens && tokens.length) {
-      const condition = "'stock-GOOG' in topics || 'industry-tech' in topics";
-      const message = {
-        data: {
-          link: d.link ? d.link : "",
-          categoryIcon: d.categoryIcon ? d.categoryIcon : "",
-        },
-        tokens: tokens,
-        notification: {
-          title: "AllEven",
-          body: d.message,
-          // badge: "1"
-        },
-        apns: {
-          payload: {
-            aps: {
-              badge: notifConut,
+    const user = await User.findById(id);
+    const token = user.fcm_token;
+    if (token.length) {
+      for (let i = 0; i < token.length; i++) {
+        console.log("Sending notification to:", token[i]);
+        // const condition = "'stock-GOOG' in topics || 'industry-tech' in topics";
+
+        const message = {
+          notification: {
+            title: d.type,
+            body: d.message,
+          },
+          token: token[i],
+          // condition: condition,
+          data: {
+            link: d.link ? d.link : "",
+            categoryIcon: d.categoryIcon ? d.categoryIcon : "",
+            service: d.service ? d.service : "",
+            company: d.company ? d.company : "",
+            event: d.event ? d.event : "",
+            meeting: d.meeting ? d.meeting : "",
+          },
+          // webpush: {
+          //   headers: {
+          //     URGENCY: "high",
+          //   },
+          // },
+          apns: {
+            headers: {
+              "apns-priority": "10",
+              "apns-push-type": "alert",
+            },
+            payload: {
+              aps: {
+                alert: {
+                  title: d.type,
+                  body: d.message,
+                },
+                sound: "default",
+              },
             },
           },
-        },
-        condition: condition,
-      };
+        };
 
-      admin
-        .messaging()
-        .sendMulticast(message)
-        .then((response) => {
-          console.log(
-            response.successCount + " messages were sent successfully"
-          );
-        })
-        .catch((e) => {
-          console.log(e);
-          admin
-            .messaging()
-            .sendMulticast(message)
-            .then((response) => {
-              console.log(
-                response.successCount + " messages were sent successfully"
-              );
-            })
-            .catch((e) => {
-              console.log(e);
-            });
-        });
+        try {
+          const response = await admin.messaging().send(message);
+          console.log("Successfully sent message:", response);
+        } catch (error) {
+          console.error("Error sending message:", error);
+
+          // Check for the specific error regarding invalid registration tokens
+          if (
+            error.errorInfo &&
+            error.errorInfo.code ===
+              "messaging/registration-token-not-registered"
+          ) {
+            console.log(`Removing invalid token for user `);
+            try {
+              // Remove or invalidate the token in the database
+              // await User.updateOne({ _id: user._id }, { $unset: { firebaseToken: 1 } });
+              console.log(`Token removed for user `);
+            } catch (error) {
+              console.error(`Error updating database for user:`);
+            }
+          }
+        }
+      }
     }
   };
 

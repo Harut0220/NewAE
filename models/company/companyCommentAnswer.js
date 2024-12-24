@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 const { Schema,model } = mongoose;
 
 const CompanyCommentAnswer = new Schema({
-  userId:{type: Schema.Types.ObjectId, ref: 'User' },
+  user:{type: Schema.Types.ObjectId, ref: 'User' },
   commentId:{ type: Schema.Types.ObjectId, ref: 'company_comment' },
   companyId:{ type: Schema.Types.ObjectId, ref: 'Company' },
   text: {type:String,

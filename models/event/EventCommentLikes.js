@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 const { Schema,model } = mongoose;
 
 const EventCommentLikes = new Schema({
-  userId:{type: Schema.Types.ObjectId, ref: 'User' },
+  user:{type: Schema.Types.ObjectId, ref: 'User' },
   commentId:{ type: Schema.Types.ObjectId, ref: 'event_comment' },
   date:{type:String,default:"date"}
 }, {

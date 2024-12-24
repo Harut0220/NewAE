@@ -43,9 +43,7 @@ class DocumentController{
             const dbRole2=await Role.find({name:"document"})
             // const result1=await Document.find({owners:dbRole1})
             const result=await Document.find({owners:dbRole2})
-            console.log(result,"result");
             let nameArray=[]
-        //   console.log(dbRole);
             for(let i=0;i<result.length;i++){
                 let obj={}
                let spl = result[i].path.split("/")
@@ -58,9 +56,7 @@ class DocumentController{
                obj.date=result[i].date
                nameArray.push(obj)
             }
-            // console.log(nameArray,"nameArray");
             const resultDocuments=nameArray
-            // console.log(nameArray,"nameArray");
         //    const resultDocuments= nameArray.filter((el)=>{
         //     return el.owner[0].toString()===dbRole2[0]._id.toString()})
             res.status(200).send(resultDocuments)
@@ -74,7 +70,6 @@ class DocumentController{
             const result=await Document.find()
             const dbRole=await Role.find({name:"document"})
             let nameArray=[]
-          console.log(dbRole);
             for(let i=0;i<result.length;i++){
                 let obj={}
                let spl = result[i].path.split("/")
@@ -85,7 +80,6 @@ class DocumentController{
                obj.id=result[i]._id
                nameArray.push(obj)
             }
-            console.log(nameArray,"nameArray");
            const resultDocuments= nameArray.filter((el)=>{
             return el.owner[0].toString()===dbRole[0]._id.toString()})
             res.status(200).send(resultDocuments)

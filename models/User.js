@@ -81,12 +81,11 @@ const User = new Schema(
         ref: "Event",
       },
     ],
-    companies: [
+    company:
       {
         type: mongoose.Schema.ObjectId,
         ref: "Company",
       },
-    ],
     event_categories: [
       {
         type: mongoose.Schema.ObjectId,

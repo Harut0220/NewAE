@@ -1,7 +1,8 @@
 <link rel="stylesheet" href="/styles/event.css">
 
 
-<div id="events" class="max-height-auto" style="display: flex;">
+<div id="events" class="max-height-auto" style="display: flex;position: relative">
+  <div class="modal"><img src="/icon/icons8-verified-48.png" alt=""><span class="modalText"></span></div>
         <div class="eventMainBody">
           <div class="eventHead">
             <div class="eventHeadFirstPart">
@@ -25,9 +26,9 @@
                   <button class="buttonAllow whiteBtn" onclick="toggleModal('denyDiv','block')">
                     Отклонить
                   </button>
-                  <form action="/admin/profile/event/edit/{{event._id}}" method="POST" enctype="multipart/form-data">
-                  <button class="buttonAllow">
-                    {{#if (eq event.status 0)}}Одобрить
+                  <form action="/admin/profile/event/edit/{{getValue event "_id"}}" method="POST" enctype="multipart/form-data" id="eventForm">
+                  <button type="button" class="buttonAllow" onclick="buttonFunc()">
+                    {{#if (eq (getValue event "status") 0)}}Одобрить
                     {{else}}Изменить
                     {{/if}}
                   </button>
@@ -39,8 +40,8 @@
               <div class="changeEvBox">
                 <div class="changeEvBoxCont">
                   <div id="pics1">
-                    {{#if event.images}}
-                        {{#each event.images}}
+                    {{#if images}}
+                        {{#each images}}
                             <div class="changeEvDiv" style="background-image: url('/{{name}}')">
                                 <img src="/images/pics/GroupX.svg" class="removeButton" onclick="removeimage(this)" attr_id="{{_id}}">
                             </div>
@@ -58,7 +59,7 @@
                     </div>  --}}
                   </div>
                   <div class="changeEvBoxContDiv">
-                    <input type="text" class="inputAllow" placeholder="Название событий" value="{{event.name}}" name="name">
+                    <input type="text" class="inputAllow" placeholder="Название событий" value="{{getValue event "name"}}" name="name">
                     <span style="margin-top: 15px;">Категория</span>
                     <select class="inputAllow" name="category">
                       <option selected="" disabled="" hidden="">{{category}}</option>
@@ -69,12 +70,12 @@
                       {{/if}}
                     </select>
                     <div id="boxDescription">
-                      <textarea id="textarea" name="description textarea_description">{{ event.description }}</textarea>
+                      <textarea id="textarea" name="description textarea_description">{{getValue event "description" }}</textarea>
                     </div>
                     <div class="changeEvSMBox">
                       <p>Дата и время начала события</p>
                       <div>
-                        <input type="datetime" class="dataInp" value="{{convertDateTime event.started_time}}" name="started_time">
+                        <input type="datetime" class="dataInp" value="{{getValue event "started_time"}}" name="started_time">
                         {{!-- <input class="time" type="time" value="20:00"> --}}
                       </div>
                     </div>
@@ -91,7 +92,7 @@
                 <div class="allEvBox_box2">
                   <p class="changeHeadP">Место события</p>
                   <div class="flex_JC_Space-between">
-                    <p class="changeText" id="addressLine">{{event.place_name}}</p>
+                    <p class="changeText" id="addressLine">{{getValue event "address"}}</p>
                     <img src="/images/pics/locationIcon.svg" style="cursor: pointer">
                   </div>
                 </div>
@@ -99,18 +100,18 @@
                   <p class="changeHeadP">Ссылка на билеты</p>
                   <div class="head">
                     <label for="">  Сделать ссылку активной </label>
-                    <input type="checkbox" name="tickets_link_active" {{#if event.tickets_link_active}} checked {{/if}} value="1">
+                    <input type="checkbox" name="tickets_link_active" {{#if (getValue event "tickets_link_active")}} checked {{/if}} value="1">
                   </div>
                   <div class="input-img-box">
-                    <input type="text" class="inputAllow inp10" placeholder="Вставьте ссылку" value="{{ event.tickets_link }}" name="tickets_link">
+                    <input type="text" class="inputAllow inp10" placeholder="Вставьте ссылку" value="{{getValue event "tickets_link" }}" name="tickets_link">
                     <img class="imageText1" src="/images/pics/text1.svg" alt="" srcset="">
                   </div>
                   <div class="input-img-box">
-                    <input type="text" class="inputAllow inp10" placeholder="Ссылка на веб сайт" value="{{ event.website_link }}" name="website_link">
+                    <input type="text" class="inputAllow inp10" placeholder="Ссылка на веб сайт" value="{{getValue event "website_link" }}" name="website_link">
                     <img class="imageText1" src="/images/pics/text1.svg" alt="" srcset="">
                   </div>
 
-                  <textarea id="textarea1" name="description_visit">{{event.description_visit}}</textarea>
+                  <textarea id="textarea1" name="description_visit">{{getValue event "description"}}</textarea>
                 </div>
               </div>
             </div>
@@ -121,7 +122,7 @@
       </div>
       <div  id="denyDiv"  style="width:100%;height:870px;background:#12121255;position:absolute;display:none">
       <div id='denyDivChild' >
-        <form action="/admin/profile/event/reject/{{event._id}}" method="POST">
+        <form action="/admin/profile/event/reject/{{getValue event "_id"}}" method="POST">
         <div id="denyDivCont1">
           <p>Причина отклонения События</p>
           <img src="/images/pics/GroupX.svg" onclick="toggleModal('denyDiv','flex')">
@@ -135,8 +136,23 @@
 
       <script src="/js/axios.js"></script>
       <script>
-        //const geoCordLatit = "{{ event.latit }}";
-        //const geoCordLotit = "{{ event.longit }}";
+
+      // Show the modal
+ function buttonFunc() {
+    // Տպում barev
+    const modal=document.querySelector('.modal');
+  modal.style.display = 'flex';
+ 
+    // 10 վայրկյան անց form-ը ուղարկելու ֆունկցիան
+    setTimeout(() => {
+      const form = document.getElementById('eventForm'); // Վերցնում ենք form-ը
+      form.submit(); // Ուղարկում ենք form-ը
+    }, 1000); // 10000 միլիվայրկյան = 10 վայրկյան
+  }
+
+   
+        //const geoCordLatit = "{{ event.latitude }}";
+        //const geoCordLotit = "{{ event.longitude}}";
         //const geoPath = `https://api.geoapify.com/v1/geocode/reverse?lat=${geoCordLatit}&lon=${geoCordLotit}&apiKey=5d33a1ddd9db4ee8862f3de928c21e89`;
          //axios.get(geoPath).then((d)=>{
          // const al = document.getElementById('addressLine');

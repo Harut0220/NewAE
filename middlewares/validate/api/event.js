@@ -11,8 +11,8 @@ const eventStore = async (req,res,next) => {
         "started_time":"required",
         "joinng_time":"required",
         // "tickets_link":"null|string",
-        "latit":"required|string",
-        "longit":"required|string"
+        "latitude":"required|string",
+        "longitude":"required|string"
     };
     await validator(req.body, validationRule, {}, (err, status) => {
         if (!status) {
@@ -61,14 +61,14 @@ const eventCategory = async (req,res,next) => {
 const event = async (req,res,next) => {
     const validationRule = {
         "name":"required|string",
-        // "description":"null|string",
+        "description":"required|string",
         "category":"required|string",
         "started_time":"required",
-        // "joinng_time":"required",
-        // "tickets_link":"null|string",
-        "latit":"required|string",
-        "longit":"required|string"
+        "latitude":"required",
+        "longitude":"required",
+        "address":"required|string",
     };
+    
 
     // if(req.files && req.files.images){
     //     if(req.files.images.length != 3){

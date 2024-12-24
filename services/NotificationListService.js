@@ -20,7 +20,7 @@ class NotificatationListService{
       return NotificatationList.find({}).lean();
     }
 
-    getByName = async (name) => {
+    getByName =   async (name) => {
       return NotificatationList.findOne({name});
     }
 }

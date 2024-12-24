@@ -28,7 +28,7 @@ const EventComment = new Schema({
     ],
     date:{type:String,
     required:true},
-    
+    isLike:{type:Boolean,default:false} 
 }, {
     timestamps: true
 })

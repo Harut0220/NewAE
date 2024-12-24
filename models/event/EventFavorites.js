@@ -3,7 +3,7 @@ const { Schema, model } = mongoose;
 
 const EventFavorites = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    user: { type: Schema.Types.ObjectId, ref: "User" },
     eventId: { type: Schema.Types.ObjectId, ref: "Event" },
     date: { type: String ,required:true},
   },

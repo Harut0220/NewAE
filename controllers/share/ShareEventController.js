@@ -11,14 +11,15 @@ class ShareEventController{
     index = async (req,res)=>{
         const eventId = req.params.id;
         const event = await this.EventService.findAndLean(eventId);
-        res.render('share/event',{title: event.name, event});
+        const images=event.images;
+        const imageHeader=event.images[0].name
+        const baseUrl = req.protocol + '://' + req.get('host');
+        res.render('share/event',{title: event.name, event,images,imageHeader,baseUrl});
     }
 
     meetIndex=async (req,res)=>{
         const meetingId = req.params.id;
         const event = await meetingModel.findById(meetingId).populate("images");
-        // console.log("event",event);
-        console.log("event.name",event.images[0].path);
         
         
         res.render('share/meeting',{title: event.purpose, event,image:event.images[0],images:event.images});
@@ -27,8 +28,6 @@ class ShareEventController{
     companyIndex=async (req,res)=>{
         const companyId = req.params.id;
         const event = await companyModel.findById(companyId).populate("images").populate("category").populate("phoneNumbers")
-        console.log("event",event);
-        console.log("event.name",event.images[0].url);
         res.render('share/company',{title: event.companyName, event,image:event.images[0],images:event.images,category:event.category,phone:event.phoneNumbers[0]});
     }
 

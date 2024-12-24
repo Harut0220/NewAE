@@ -47,7 +47,7 @@ const Event = new Schema(
       required: false,
       default: null,
     },
-    place_name: {
+    address: {
       type: String,
       required: false,
       default: null,
@@ -126,13 +126,15 @@ const Event = new Schema(
       // enum: ["passing", "upcoming", "passed"],
       default: "upcoming",
     },
-    location: {
-      type: { type: String, enum: ["Point"], required: true },
-      coordinates: {
-        type: [Number],
-        required: true,
-      },
-    },
+    latitude:{type: Number, required: true},
+    longitude:{type: Number, required: true },
+    // location: {
+    //   type: { type: String, enum: ["Point"], required: true },
+    //   coordinates: {
+    //     type: [Number],
+    //     required: true,
+    //   },
+    // },
     changedStatusDate: {
       type: String,
       default: "0000-00-00T00:00:00.00+00:00",
@@ -161,6 +163,10 @@ const Event = new Schema(
       favorites: { type: Boolean, default: false },
       count: { type: Number, default: 0 },
       // joinStatus:{type:Number,default:1},
+    },
+    rejectMessage: {
+      type: String,
+      default: "null",
     },
   },
 

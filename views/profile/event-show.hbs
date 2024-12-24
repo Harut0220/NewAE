@@ -80,13 +80,13 @@
                   <span>Описание</span> {{ event.description }}
                 </p>
               </div>
-              <p class="boxP"><span>Дата: </span> {{convertDate event.started_time}} - {{convertDate event.joinng_time}}</p>
+              <p class="boxP"><span>Дата: </span> {{convertDate event.started_time}} </p>
               {{!-- <p class="boxP"><span>Время:</span>{{convertDate event.started_time}}</p> --}}
               <p class="boxP"><span>Телефон: </span>{{event.owner.phone_number}}</p>
               <p class="boxP"><span>Веб сайт: </span>{{event.tickets_link}}</p>
               <p class="boxP boxPflex">
                 <span>Место прохождения: </span>
-                {{ event.place_name }}
+                {{ event.address }}
               </p>
               <p></p>
               <p class="boxP">

@@ -11,9 +11,11 @@ const signup = async (req,res,next)=>{
         "name": "required|string",
         "surname":"required|string",
         "imagePath":"required|string",
-        "role": "required|string",
+        // "role": "required|string",
     };
-
+    const {expiration_token} = req.body;
+    console.log(expiration_token,"expiration_token");
+    
     // const user = await User.findOne({"phone_number":req.body.phone_number});
 
     // if(user){

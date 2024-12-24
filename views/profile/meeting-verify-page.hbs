@@ -2,6 +2,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js"></script>
 
 <div id="events" class="max-height-auto" style="display: flex">
+    <div class="modal"><img src="/icon/icons8-verified-48.png" alt=""><span class="modalText"></span></div>
+
   <div class="eventMainBody">
     <div class="eventHead">
       <div class="eventHeadFirstPart">
@@ -38,9 +40,9 @@
                 Отклонить
               </button>
               <form action="/admin/profile/meeting/verify/resolve/{{getValue event "_id"}}"
-              method="POST" enctype="multipart/form-data">
+              method="POST" enctype="multipart/form-data" id="eventForm">
 
-              <button class="buttonAllow">
+              <button type="button" class="buttonAllow" onclick="buttonFunc()">
                 {{#if (getValue event "status")}}Изменить{{else}}Одобрить{{/if}}
               </button>
             </div>
@@ -60,19 +62,20 @@
                 <p class="user_data">{{getValue userMeet "phone_number"}}</p>
                 <p class="user_data">{{getValue userMeet "email"}}</p>
               </div>
+              {{meetVerify}}
             </div>
 
             <div class="changeEvBoxCont">
               <input type="text" class="inputAllow" placeholder="Категория"
-              value="{{getValue userMeet "surname"}} {{getValue userMeet "name"}}  {{getValue event "surname"}}" name="{{getValue event "name"}}">
+              value="{{getValue event "surname"}} {{getValue event "name"}}  {{getValue event "surname"}}" name="{{getValue event "name"}}">
               <br><span>Паспортный код</span>
               <input type="text" class="inputAllow" placeholder="Название
               событий" value="{{getValue event 'passport'}}" name="{{getValue
               event "name"}}"><br>
               <span>Срок Паспорт</span>
                <input type="text" class="inputAllow"
-              placeholder="Категория" value="{{getValue event "birthday"}}"
-              name="name"><br />
+              placeholder="Категория" value="{{getValue event "term"}}"
+              name="name"><br/>
               {{!-- <input type="text" class="inputAllow"
               placeholder="Категория" value="{{getValue event "passportImage"}}"
               name="name"><br />
@@ -98,7 +101,7 @@
                   </svg>
                 </div>
                 {{!-- <input type="text" class="inputAllow" value="{{getValue
-                event "place_name"}}" name="name"> --}}
+                event "address"}}" name="name"> --}}
               </div>
               <br />
               {{!--
@@ -131,7 +134,7 @@
               <br />
             </div>
           </div>
-          <img src="{{getValue event "passportImage"}}" alt="" id="passport">
+          <img src="/{{getValue event "passportImage"}}" alt="" id="passport">
         </div>
         </form>
       </div>
@@ -173,13 +176,27 @@
 
 <script src="../../public/js/axios.js"></script>
 <script>
-  //const geoCordLatit = {{getNestedValue event "coords.latit"}};
-  //const geoCordLotit = {{getNestedValue event "coords.longit"}};
+  //const geoCordLatit = {{getNestedValue event "latitude"}};
+  //const geoCordLotit = {{getNestedValue event "longitude"}};
   //const geoPath = `https://api.geoapify.com/v1/geocode/reverse?lat=${geoCordLatit}&lon=${geoCordLotit}&apiKey=5d33a1ddd9db4ee8862f3de928c21e89`;
   // axios.get(geoPath).then((d)=>{
   //  const al = document.getElementById('addressLine');
   //  al.innerHTML = d.data.features[0].properties.address_line2
   //})
+
+document.querySelectorAll('img').forEach(img => {
+      img.addEventListener('contextmenu', (e) => {
+          e.preventDefault(); // արգելում է աջ կոճակի մենյուն
+      });
+  });
+
+  // Wait for the src to be set dynamically
+
+
+
+
+
+  
 
   function removeimage(el) {
     let id = el.getAttribute("attr_id");
@@ -193,6 +210,18 @@
     imageSrc: "../../pubimglic/styles/fonts/phoneVector.png",
     altText: "Descriptive text for the image",
   };
+
+   function buttonFunc() {
+    // Տպում barev
+    const modal=document.querySelector('.modal');
+  modal.style.display = 'flex';
+ 
+    // 10 վայրկյան անց form-ը ուղարկելու ֆունկցիան
+    setTimeout(() => {
+      const form = document.getElementById('eventForm'); // Վերցնում ենք form-ը
+      form.submit(); // Ուղարկում ենք form-ը
+    }, 1000); // 10000 միլիվայրկյան = 10 վայրկյան
+  }
 
   // Compile the Handlebars template
   const source = document.getElementById("template").innerHTML;

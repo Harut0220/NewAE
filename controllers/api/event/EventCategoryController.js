@@ -14,7 +14,7 @@ class EventCategoryController{
         let userRole = 'USER';
 
         if(req.user){
-            userRole = await this.UserService.getRoleByUserId(req.user.id);
+            userRole = await this.UserService.getRoleByuser(req.user.id);
             var user = await this.UserService.findAndLean(req.user.id);
         }
 
@@ -29,7 +29,6 @@ class EventCategoryController{
     store = async (req,res) => {
         const {name, description} = req.body;
         const authHeader = req.headers.authorization;
-        console.log(authHeader,"authHeader");
             const token = authHeader.split(' ')[1];
     
            const user = jwt.decode(token);

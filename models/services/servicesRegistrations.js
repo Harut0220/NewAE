@@ -3,11 +3,13 @@ const { Schema,model } = mongoose;
 
 const servicesRegistrations = new Schema({
     serviceId:{type : Schema.Types.ObjectId,ref:"company_service"},
-    date:{type:String,require:true},
+    date:{type:String,required:true},
+    dealDate:{type:String,default:""},
     status:{type:Number,default:0},
-    userId:{ type: Schema.Types.ObjectId, ref: "User" },
-    text:{type:String,require:true},
-    time:{type:String,require:true}
+    user:{ type: Schema.Types.ObjectId, ref: "User" },
+    messages:{type:Array},
+    dateSlice:{type:String},
+    // time:{type:String,required:true}
 }, {
     timestamps: true // This will add createdAt and updatedAt fields
   })

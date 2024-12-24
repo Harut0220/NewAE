@@ -53,22 +53,19 @@ const h = {
         return options.fn({ id, name,image });
     }).join('');
   },
-  optionsFromArraysy:(array, idField, pathField, options)=> {
-    const urlPoint = options.hash.urlPoint;  // Get urlPoint from options
-    let out = '';
-    const linkArray=urlPoint.split(":/").join("://")
+  optionsFromArraysy:(array, idKey, pathKey, options)=> {
+    // const urlPoint = options.hash.urlPoint;  // Get urlPoint from options
+    // let out = '';
+    // const linkArray=urlPoint.split(":/").join("://")
    
-    console.log("3333333333",linkArray);
     
 
-    array.forEach(item => {
-        const id = item[idField];
-        const path = item[pathField];
-        const url = `${linkArray}${path}`;
-        out += options.fn({ value: id, url: url });
-    });
-
-    return out;
+   return array.map(item => {
+        const id = item[idKey];
+        const path = item[pathKey];
+        // const url = `${path}`;
+        return options.fn({ id, path });
+    }).join('');
 },
   getValueCategory:(obj, key)=>{
     return obj[key];
@@ -79,7 +76,7 @@ const h = {
   // getValueMeet:(obj, key)=> {
   //   return obj[key];
   // },
-  optionsCompanyArrays: (array, valueKey, textKey,ownerKey,startKey,endKey,ratingKey,categoryKey,placeKey,likesKey,statusKey,onlineKey, options) => {
+  optionsCompanyArrays: (array, valueKey, textKey,ownerKey,startKey,endKey,ratingKey,categoryKey,placeKey,likesKey,statusKey,onlineKey,servicesKey, options) => {
     if (!Array.isArray(array)) {
         return '';
     }
@@ -93,14 +90,23 @@ const h = {
         const endHour=item[endKey]
         const rating=item[ratingKey]
         const category=item[categoryKey]
-        const place_name=item[placeKey]
+        const address=item[placeKey]
         const likes=item[likesKey]
         const status=item[statusKey]
         const onlinePay=item[onlineKey]
-        
-        return options.fn({ id, name, owner, startHour,endHour,rating,category,place_name,likes,status,onlinePay  });
+        const services=item[servicesKey]
+        return options.fn({ id, name, owner, startHour,endHour,rating,category,address,likes,status,onlinePay,services  });
     }).join('');
-  },  
+  }, 
+  
+  getServicesArrays: (array, typeKey, options) => {
+    return array.map(item => {
+      const type = item[typeKey];
+
+      return options.fn({ type });
+  }).join('');
+    
+  },
   optionsMeetingArrays:(array, valueKey, purposeKey,ownerKey,addressKey,openDateKey,openTimeKey,startDateKey,statusKey,likesKey,sitKey, options)=>{
     if (!Array.isArray(array)) {
       return '';
@@ -123,11 +129,7 @@ const h = {
   }).join('');
   },
   optionsMeetingParticipants:(array,  idKey,nameKey,surnameKey,emailKey,genderKey,  options)=> {
-    // console.log('Array:', array);
-    // console.log('Value Key:', valueKey);
-    // console.log('Text Key:', textKey);
-    // console.log('ID Key:', idKey);
-    // console.log('Images Key:', imagesKey);
+   
   
     if (!Array.isArray(array)) {
       return '';
@@ -140,15 +142,7 @@ const h = {
       const surname=item[surnameKey]
       const email=item[emailKey]
       const gender=item[genderKey]
-      // const images = item[imagesKey];
-      // const desc=item[descKey]
-      
-      // console.log('Item:', item);
-      // console.log('Images:', images);
-  
-      // const imageElements = Array.isArray(images) 
-      //   ? images.map(img => `<img class="img_service" src="http://localhost:3000/${img}" alt="Image" />`).join(' ')
-      //   : '';
+   
   
       return options.fn({ id,name,surname,email,gender });
     }).join('');},
@@ -261,11 +255,7 @@ imagesFromMeeting:(array, valueKey, textKey, options)=> {
   }).join('');
 },
     optionsFromArray:(array, valueKey, textKey, idKey, imagesKey,descKey, options)=> {
-  // console.log('Array:', array);
-  // console.log('Value Key:', valueKey);
-  // console.log('Text Key:', textKey);
-  // console.log('ID Key:', idKey);
-  // console.log('Images Key:', imagesKey);
+  
 
   if (!Array.isArray(array)) {
     return '';
@@ -278,22 +268,17 @@ imagesFromMeeting:(array, valueKey, textKey, options)=> {
     const images = item[imagesKey];
     const desc=item[descKey]
     
-    console.log('Item:', item);
-    console.log('Images:', images);
+  
 
     const imageElements = Array.isArray(images) 
-      ? images.map(img => `<img class="img_service" src="http://localhost:3000/${img}" alt="Image" />`).join(' ')
+      ? images.map(img => `<img class="img_service" src="/${img}" alt="Image" />`).join(' ')
       : '';
 
     return options.fn({ value, text, id, images: imageElements,desc });
   }).join('');
 },
 ArrayFromComments:(array,textKey, dateKey,userKey,likesKey, options)=> {
-  // console.log('Array:', array);
-  // console.log('Value Key:', valueKey);
-  // console.log('Text Key:', textKey);
-  // console.log('ID Key:', idKey);
-  // console.log('Images Key:', imagesKey);
+
 
   if (!Array.isArray(array)) {
     return '';

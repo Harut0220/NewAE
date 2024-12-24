@@ -9,7 +9,6 @@ class UserController{
     }
     index = async (req, res) => {
         let datas = await this.UserService.getAll();
-        console.log(datas)    
         res.render('index',{
             title:'Home Page',
             datas

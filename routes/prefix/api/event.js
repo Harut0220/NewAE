@@ -2,9 +2,7 @@ import { Router } from "express";
 import EventController from "../../../controllers/api/event/EventController.js";
 import EventCategoryController from "../../../controllers/api/event/EventCategoryController.js";
 import FavoriteController from "../../../controllers/api/event/FavoriteController.js";
-import VisitController from "../../../controllers/api/event/VisitController.js";
 import LikeController from "../../../controllers/api/event/LikeController.js";
-import ViewController from "../../../controllers/api/event/ViewController.js";
 import {
   eventCategory,
   event,
@@ -12,19 +10,14 @@ import {
   rating,
   comment,
   commentLike,
-  ImpressionImage,
-  userImpression,
-  nearEvent,
+  ImpressionImage
 } from "../../../middlewares/validate/api/event.js";
 import RatingController from "../../../controllers/api/event/RatingController.js";
 import CommentController from "../../../controllers/api/event/CommentController.js";
-import EventImpressionImageController from "../../../controllers/api/event/EventImpressionImageController.js";
-import InPlaceController from "../../../controllers/api/event/InPlaceController.js";
 import { empObj, isEmpParamObjId } from "../../../middlewares/isEmpty.js";
 import authenticateJWT from "../../../middlewares/authJWT.js";
 import authenticateJWTWithoutCheck from "../../../middlewares/authJWTwithoutCheck.js";
 import newAuthJWT from "../../../middlewares/newAuthJWT.js";
-// import { eventStore } from "../../../middlewares/validate/api/event.js";
 const eventRoutes = Router();
 eventRoutes.post("/notif/opportunity", newAuthJWT, EventController.opportunity);
 eventRoutes.get(
@@ -36,7 +29,7 @@ eventRoutes.get(
 
 eventRoutes.get("/single/:id", isEmpParamObjId, EventController.single);
 
-eventRoutes.post("/store", newAuthJWT, event, EventController.store);
+eventRoutes.post("/store",newAuthJWT, event, EventController.store);
 eventRoutes.post(
   "/add/participant",
   newAuthJWT,
@@ -51,9 +44,11 @@ eventRoutes.post(
 eventRoutes.put("/edit/:id", isEmpParamObjId, empObj, EventController.edit);
 
 eventRoutes.get("/near/:id", isEmpParamObjId, EventController.nearEvent);
+
 eventRoutes.post("/favorite", newAuthJWT, FavoriteController.favorite);
+
 eventRoutes.post("/like", newAuthJWT, likeDislike, LikeController.like);
-///////////////////////////////////minchev stex
+
 eventRoutes.post(
   "/add/comment",
   newAuthJWT,
@@ -62,6 +57,7 @@ eventRoutes.post(
 );
 
 eventRoutes.delete("/comment/delete", CommentController.deleteComment);
+
 eventRoutes.post(
   "/comment/like",
   newAuthJWT,
@@ -105,17 +101,21 @@ eventRoutes.post("/socketTest", EventController.socket);
 /////////////////////////////////////////// //authenticateJWT,
 // eventRoutes.put('/edit/:id',empObj,authenticateJWT,EventController.edit);
 // //authenticateJWTWithoutCheck,
-// eventRoutes.get('/categories',authenticateJWTWithoutCheck,EventCategoryController.index);
-// //authenticateJWT,eventCategory,
+eventRoutes.get('/categories',authenticateJWTWithoutCheck,EventCategoryController.index);
+//authenticateJWT,eventCategory,
 eventRoutes.post(
   "/category/store",
   eventCategory,
   EventCategoryController.store
 );
-// //authenticateJWT,likeDislike,
-// eventRoutes.post('/like',authenticateJWT,likeDislike,LikeController.store);
 // //authenticateJWT,
-// eventRoutes.get('/like',authenticateJWT,LikeController.index);
+eventRoutes.get('/like',authenticateJWT,LikeController.index);
+eventRoutes.post(
+  "/impression-images/store",
+  newAuthJWT,
+  ImpressionImage,
+  EventController.ImpressionImage
+);
 // //authenticateJWT,
 // eventRoutes.post('/favorite',authenticateJWT,likeDislike,FavoriteController.store);
 // //authenticateJWT,
@@ -139,12 +139,7 @@ eventRoutes.post(
 // //authenticateJWT,
 // eventRoutes.post('/comment/like/store',authenticateJWT,commentLike,CommentController.like);
 // //authenticateJWT,
-eventRoutes.post(
-  "/impression-images/store",
-  newAuthJWT,
-  ImpressionImage,
-  EventImpressionImageController.store
-);
+
 // //userImpression,
 // eventRoutes.get('/user/impressions',userImpression,EventController.userImpressions)
 // //authenticateJWT,

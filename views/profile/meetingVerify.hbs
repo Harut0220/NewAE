@@ -46,18 +46,18 @@
           <div id="eventBody">
             <div id="eventBodyHead">
               {{!-- <p>Топ</p> --}}
-              <form action="/admin/profile/meeting/verify/destroy/many" method="POST">
-              <button>
-                <img src="/images/staticimg/delete 1.svg">
-              </button>
+              {{!-- <form action="/admin/profile/meeting/verify/destroy/many" method="POST"> --}}
+              {{!-- <button> --}}
+                {{!-- <img src="/images/staticimg/delete 1.svg"> --}}
+              {{!-- </button> --}}
             </div>
             <div id="eventBodyContent">
               <table id="table">
                 <thead>
                   <tr>
-                    <th class="td1" style="padding: 11px 8px; text-align: center">
-                      №
-                    </th>
+                    {{!-- <th class="td1" style="padding: 11px 8px; text-align: center"> --}}
+                      {{!-- № --}}
+                    {{!-- </th> --}}
                     {{!-- <th class="td1">Название Встречи</th> --}}
                     <th class="td1">Организатор</th>
                     <th class="td1">Статус</th>
@@ -75,14 +75,14 @@
                     {{#if meetings}}
                       {{#optionsMeetingArrays meetings "_id" "name" "family" "surname" "openDate" "openTime" "date"  "status" "likes" "situation"}}
                          <tr>
-                          <td class="td">
-                              <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{id}}">
-                          </td>
+                          {{!-- <td class="td"> --}}
+                              {{!-- <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{id}}"> --}}
+                          {{!-- </td> --}}
                           {{!-- <td class="td">{{purpose}}</td> --}}
                           <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>{{purpose}} {{owner }} {{address}}</td>
                           <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>
                             {{#if (eq situation "passed")}}Завершено
-                            {{else if (eq status 0)}}Запланированое
+                            {{else if (eq status 0)}}Hа модерации
                             {{else if (eq status 1)}}Одобрено
                             {{else}}Отклонено
                             {{/if}}
@@ -115,7 +115,6 @@
                 </tbody>
               </table>
             </div>
-            </form>
           </div>
         </div>
       </div>

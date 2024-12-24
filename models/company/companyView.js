@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 const { Schema,model } = mongoose;
 
 const CompanyViews = new Schema({
-  userId:{type: Schema.Types.ObjectId, ref: 'User' },
+  user:{type: Schema.Types.ObjectId, ref: 'User' },
   companyId:{ type: Schema.Types.ObjectId, ref: 'Company' },
   date:{type:String,
   required:true}

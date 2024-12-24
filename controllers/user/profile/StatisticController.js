@@ -64,7 +64,7 @@ class StatisticController{
         for(let i=0;i<compCat.length;i++){
             
            const comp= await companyModel.find({category:compCat[i]._id})
-        //    let obj={category:compCat[i].name,companies:comp}  
+        //    let obj={category:compCat[i].name,company:comp}  
            compArray.push(comp.length)      
            compCatArray.push(compCat[i])
         }

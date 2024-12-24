@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 const { Schema,model } = mongoose;
 
 const MeetingCommentAnswer = new Schema({
-  userId:{type: Schema.Types.ObjectId, ref: 'User' },
+  user:{type: Schema.Types.ObjectId, ref: 'User' },
   commentId:{ type: Schema.Types.ObjectId, ref: 'meeting_comment' },
   text: {type:String,
   required:true},

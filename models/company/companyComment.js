@@ -3,7 +3,7 @@ const { Schema, model } = mongoose;
 
 const CompanyComment = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    user: { type: Schema.Types.ObjectId, ref: "User" },
     companyId: { type: Schema.Types.ObjectId, ref: "Company" },
     text: { type: String, required: true },
     date: { type: String ,required: true},

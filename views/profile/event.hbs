@@ -13,9 +13,9 @@
           <select name="category">
             <option disabled selected>Выберите категорию</option>
             {{#if eventCats.length}}
-              {{#each eventCats}}
-              <option value="{{_id}}" {{#if (eq  _id q.category)}} selected  {{/if}}>{{name}}</option>
-              {{/each}}
+              {{#eventCategoryArraysOne eventCats "_id" "name" "description" "avatar" "map_avatar" "status"}}
+              <option value="{{id}}" {{#if (eq  id q.category)}} selected  {{/if}}>{{name}}</option>
+              {{/eventCategoryArraysOne}}
             {{/if}}
           </select>
           <input placeholder="Название" name="name" value="{{q.name}}">
@@ -77,38 +77,22 @@
                           <td class="td" >
                               <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{_id}}">
                           </td>
-                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
-  style="color: red;"
-{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{category.name}}</td>
-                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
-  style="color: red;"
-{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{name}}</td>
-                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
-  style="color: red;"
-{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{owner.name}} {{owner.surname}}</td>
-                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
-  style="color: red;"
-{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>
+                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{category.name}}</td>
+                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{name}}</td>
+                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{owner.name}} {{owner.surname}}</td>
+                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>
                             {{#if (eq situation "passed")}}Завершено
-                            {{else if (eq status 0)}}Запланированое
+                            {{else if (eq status 0)}}Hа модерации
                             {{else if (eq status 1)}}Одобрено
                             {{else if (eq status 3)}}Завершено
                             {{else}}Отклонено
                             {{/if}}
                             </td>
                           {{!-- <td class="td">{{lng situation "ru"}}</td> --}}
-                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
-  style="color: red;"
-{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{convertDate started_time}}</td>
-                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
-  style="color: red;"
-{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>{{place_name}}</td>
-                          <td class="td" {{#if (and (eq status 0) (eq situation "passed"))}}
-  style="color: red;"
-{{else if (eq status 0)}} style="color: #59d815;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
-                          <td class="td" style="text-align:center;" {{#if (and (eq status 0) (eq situation "passed"))}}
-  style="color: red;"
-{{else if (eq status 0)}} style="color: #59d815;"{{/if}}>
+                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{convertDate started_time}}</td>
+                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{address}}</td>
+                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
+                          <td class="td" style="text-align:center;" {{#if (and (eq situation "passed") (eq status 0))}} style="color: yellow;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>
                             {{#if (notEq situation "passed") }}
                               <a href="/admin/profile/event/single/{{_id}}" style="display: flex;align-items: center;justify-content: center;">
                                   <img src="/images/staticimg/Vector1(1).svg" style="width: 15px; height: 16px; cursor: pointer;">

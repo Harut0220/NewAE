@@ -37,27 +37,27 @@ class NotificationService{
     }
 
     store = async (data) => {
-        let ex_notif_type = false;
-        if(data.user && data.notif_type){
-            const user = await this.UserService.findAndLean(data.user);
-            if(user && user.list_of_notifications && user.list_of_notifications.length){
-                for(let l=0;l<user.list_of_notifications.length;l++){
-                    if(data.notif_type == user.list_of_notifications[l].name){
-                        ex_notif_type = true;
-                        break;
-                    }
-                  }
-            }
-        }
-        const notificationLists = await this.UserService.getNotificatationListByName(data.notif_type);
+        // let ex_notif_type = false;
+        // if(data.user && data.notif_type){
+        //     const user = await this.UserService.findAndLean(data.user);
+        //     if(user && user.list_of_notifications && user.list_of_notifications.length){
+        //         for(let l=0;l<user.list_of_notifications.length;l++){
+        //             if(data.notif_type == user.list_of_notifications[l].name){
+        //                 ex_notif_type = true;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
+        // const notificationLists = await this.UserService.getNotificatationListByName(data.notif_type);
 
         
-        if(!ex_notif_type && notificationLists  ){
-            return 1;
-        }
+        // if(!ex_notif_type && notificationLists  ){
+        //     return 1;
+        // }
 
-        let roles = await Role.find({name:data.sent},{_id:1});
-        data.sent = roles;
+        let role = await Role.findOne({name:"USER"});
+        data.sent = role;
         return await Notification.create(data)
     }
 

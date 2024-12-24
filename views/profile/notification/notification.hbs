@@ -21,9 +21,9 @@
                 <p>Кому</p>
                 <select class="WhomInp" name="role">
                   {{!-- <option disabled selected>Выберите</option> --}}
-                  <option value="all" selected >Всем</option>
-                  <option value="USER" {{#if (inclOne notif.sent 'USER' 'name')}} selected {{/if}}>Организаторам</option>
-                  <option value="USER" {{#if (inclOne notif.sent 'USER' 'name')}} selected {{/if}}>Посетителям</option>
+                  {{!-- <option value="all" selected >Всем</option> --}}
+                  <option value="USER" {{#if (inclOne notif.sent 'USER' 'name')}} selected {{/if}}>Всем</option>
+                  {{!-- <option value="USER" {{#if (inclOne notif.sent 'USER' 'name')}} selected {{/if}}>Посетителям</option> --}}
                 </select>
               </div>
               <div class="TypeNotification">

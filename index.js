@@ -34,15 +34,39 @@ import companyModel from "./models/company/companyModel.js";
 import seedRouter from "./routes/seed.js";
 import reedRouter from "./routes/reed.js";
 import { dateNow } from "./config/timestamps.js";
-import moment from "moment";
+import moment from "moment-timezone";
 import { isEmpParamObjId } from "./middlewares/isEmpty.js";
 import newAuthJWT from "./middlewares/newAuthJWT.js";
+import shareRoutes from "./routes/share.js";
+import Document from "./models/Document.js";
+import User from "./models/User.js";
+import { admin } from "./config/firebase/messaging.js";
 // Your code using multer here
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config();
+// const template =
+// `<div class="invitation">
+//     <p>
+//       {{ greeting }} | {{ description }}
+//     </p>
+//     <img src="{{imageUrl}}" alt="Invitation Image" />
+//   </div>`
+// ;
+// // Data to pass into the template
+// const data = {
+//   greeting: "Online Invitation Card Platform",
+//   description: "We invite you to a birthday party",
+//   imageUrl:
+//     "https://chatapi.trigger.ltd/uploads/7415c8e5-9b4f-4ed9-b6d1-893267b413af.jpeg",
+// };
 
+// // Compile and render the template
+// const compiledTemplate = handlebars.compile(template);
+// const result = compiledTemplate(data);
+
+// Output the result (you can insert it into your HTML)
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -78,131 +102,88 @@ app.use(bodyParser.json({ limit: "500mb", parameterLimit: 10000 }));
 app.use(bodyParser.raw({ limit: "500mb", parameterLimit: 100000 }));
 app.use(bodyParser.text({ limit: "500mb", parameterLimit: 10000 }));
 app.use(bodyParser.urlencoded({ limit: "500mb", extended: true }));
-
 // app.get('/',(req,res)=>{
 //   res.redirect('/admin/login');
 // });
-
-app.get("/event/:id",isEmpParamObjId, ShareEventController.index);
-app.get("/meeting/:id",isEmpParamObjId, ShareEventController.meetIndex);
-app.get("/company/:id",isEmpParamObjId, ShareEventController.companyIndex);
-app.get("/service/:id",isEmpParamObjId, ShareEventController.serviceIndex);
+app.use(shareRoutes);
 app.use("/admin", webRoutes);
 app.use(wsRoutes);
 app.use("/api", apiRoutes);
 app.use("/report", reportRoutes);
 app.use("/seed", seedRouter);
 app.use(reedRouter);
-app.get('/some-route', (req, res) => {
-  res.render('someTemplate', { url: process.env.URL });
+app.get("/some-route", (req, res) => {
+  res.render("someTemplate", { url: process.env.URL });
 });
 
-app.get("/test1",newAuthJWT, async (req, res) => {
-  function getFormattedDate() {
-    const date = new Date();
+// app.get("/test", async (req, res) => {
+//   const sendPushNotification = async (token, content) => {
+//     // const token = user.firebaseToken;
 
-    const pad = (n) => n.toString().padStart(2, "0"); // Helper function to pad numbers to 2 digits
+//     if (!token) {
+//       return;
+//     }
+//     for (let i = 0; i < token.length; i++) {
+//       console.log("Sending notification to:", token[i]);
+//       const condition = "'stock-GOOG' in topics || 'industry-tech' in topics";
 
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1); // Months are zero-indexed, so we add 1
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    const seconds = pad(date.getSeconds());
-    const milliseconds = date
-      .getMilliseconds()
-      .toString()
-      .padStart(3, "0"); // Pad milliseconds to 3 digits
+//       const message = {
+//         notification: {
+//           title: "Նոր հաղորդագրություն",
+//           body: content,
+//         },
+//         token: token[i],
+//         condition: condition,
+//         data: {},
+//         apns: {
+//           headers: {
+//             "apns-priority": "10",
+//             "apns-push-type": "alert",
+//           },
+//           payload: {
+//             aps: {
+//               alert: {
+//                 title: "Նոր հաղորդագրություն",
+//                 body: content,
+//               },
+//               sound: "default",
+//             },
+//           },
+//         },
+//       };
 
-    // Timezone offset in minutes, and converting it to hours and minutes
-    const tzOffset = date.getTimezoneOffset();
-    const tzSign = tzOffset > 0 ? "-" : "+";
-    const tzHours = pad(Math.floor(Math.abs(tzOffset) / 60));
-    const tzMinutes = pad(Math.abs(tzOffset) % 60);
+//       try {
+//         const response = await admin.messaging().send(message);
+//         console.log("Successfully sent message:", response);
+//       } catch (error) {
+//         console.error("Error sending message:", error);
 
-    // Constructing the final string in the desired format
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${tzSign}${tzHours}:${tzMinutes}`;
-  }
-  console.log(getFormattedDate(),"llllllllllllllll");
-  
-  const moscowTime = moment().tz('Europe/Moscow').format('YYYY-MM-DD HH:mm');
-  console.log(moscowTime);
-  res.send(moscowTime);
-});
-
-
-
-
-
-//////////////////////////////////////////////////////////////
-// const event = {
-//   _id: "67208c314b6ae258392abdd3",
-//   purpose: "dwqwqqwd",
-//   description: "dwqdqwdwq",
-//   ticket: "www.limk.am",
-//   address: "Oshakan, Armenia",
-//   lat: 40.2654304,
-//   lon: 44.3099177,
-//   date: "2024-11-05T15:09:00",
-//   status: 1,
-// };
-
-// // Calculate notification time (1 hour before event)
-// const eventTime = moment.tz(event.date, "Asia/Yerevan");
-// const notificationTime = eventTime.clone().subtract(1, 'hours').toDate();
-// // const eventTime = moment(event.date);
-// // const notificationTime = eventTime.subtract(1, 'hours').toDate();
-// console.log("Notification time:", notificationTime);
-
-// // Function to send a push notification
-// function sendNotification() {
-//   const message = {
-//     notification: {
-//       title: "Event Reminder!",
-//       body: `The event is starting in 1 hour at ${event.address}. Don't miss it!`,
-//     },
-//     data: {
-//       eventId: event._id.toString(),
-//       ticketLink: event.ticket,
-//       eventTime: event.date
-//     },
-//     topic: "event_reminders"  // Replace with the topic or targeted user/device token
+//         // Check for the specific error regarding invalid registration tokens
+//         if (
+//           error.errorInfo &&
+//           error.errorInfo.code === "messaging/registration-token-not-registered"
+//         ) {
+//           console.log(`Removing invalid token for user `);
+//           try {
+//             // Remove or invalidate the token in the database
+//             // await User.updateOne({ _id: user._id }, { $unset: { firebaseToken: 1 } });
+//             console.log(`Token removed for user `);
+//           } catch (error) {
+//             console.error(`Error updating database for user:`);
+//           }
+//         }
+//       }
+//     }
 //   };
-//   console.log("Notification message:", message);
-  
+//   const user = await User.findById("67370e18ce5cd4db33b70deb");
 
-//   // Send the notification
-//   admin.messaging().send(message)
-//     .then(response => {
-//       console.log("Notification sent successfully:", response);
-//     })
-//     .catch(error => {
-//       console.error("Error sending notification:", error);
-//     });
-// }
+//   await sendPushNotification(user.fcm_token, "namak");
+//   res.send("1");
+// });
 
-// // Schedule notification
-// const scheduleNotification = () => {
-//   const now = new Date();
-//   const timeUntilNotification = notificationTime - now;
+// console.log(moment.tz(process.env.TZ).format("YYYY-MM-DD"));
 
-//   if (timeUntilNotification > 0) {
-//     setTimeout(sendNotification, timeUntilNotification);
-//     console.log(`Notification scheduled for ${notificationTime}`);
-//   } else {
-//     console.log("The event time has already passed.");
-//   }
-// };
-
-// // Start the scheduling function
-// scheduleNotification();
-
-
-
-
-
-///////////////////////////////////////////////////////////////
-
+////////////////////////////////////////////////////////////
 
 const start = async () => {
   await connect();

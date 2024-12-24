@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 const { Schema,model } = mongoose;
 
 const MeetingViews = new Schema({
-  userId:{type: Schema.Types.ObjectId, ref: 'User' },
+  user:{type: Schema.Types.ObjectId, ref: 'User' },
   meetingId:{ type: Schema.Types.ObjectId, ref: 'Meeting' },
   date:{type:String,
   required:true}

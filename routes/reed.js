@@ -42,6 +42,38 @@ reedRouter.get("/document/:cssFile",(req,res)=>{
   }
 })
 
+reedRouter.get("/Public/:json",(req,res)=>{
+  try {
+    const image = req.params.json;
+    const imagePath = path.join(__dirname,"..", "views", image);
+  
+    // Check if the file exists
+    if (image && imagePath) {
+      res.sendFile(imagePath);
+    } else {
+      res.status(404).send("Image not found");
+    }
+  } catch (error) {
+    console.error(error)
+  }
+})
+
+reedRouter.get("/icon/:cssFile",(req,res)=>{
+  try {
+    const image = req.params.cssFile;
+    const imagePath = path.join(__dirname,"..", "storage", image);
+  
+    // Check if the file exists
+    if (image && imagePath) {
+      res.sendFile(imagePath);
+    } else {
+      res.status(404).send("Image not found");
+    }
+  } catch (error) {
+    console.error(error)
+  }
+})
+
 reedRouter.get("/admin/styles/:cssFile",(req,res)=>{
   try {
     const image = req.params.cssFile;
@@ -181,7 +213,7 @@ reedRouter.get('/uploads/:image',(req,res)=>{
  
   
   const imagePath = path.join(__dirname,"..", "storage","uploads", imageCategory);
-  console.log(imagePath);
+  // console.log(imagePath);
   // Check if the file exists
   if (imageCategory && imagePath) {
     res.sendFile(imagePath);

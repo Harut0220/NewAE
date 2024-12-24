@@ -28,7 +28,6 @@ class AuthController {
     req.body.role = "USER";
     const { phone_number, name, surname, imagePath, role, password } = req.body;
     if (imagePath) {
-        console.log("stanaluc", phone_number,"-", name,"-", surname,"-", imagePath,"-", role,"-", password,"-", );
         
       const user = await this.UserService.storeUserByPhoneNumberImage(
         phone_number,
@@ -38,9 +37,8 @@ class AuthController {
         password,
         role
       );
-      res.json({ status: "success", message: "Пользователь успешно создан" });
+      res.status(200).send({ status: "success", message: "Пользователь успешно создан" });
     } else {
-        console.log("stanaluc", phone_number,"-", name,"-", surname,"-", imagePath,"-", role,"-", password,"-", );
 
       const user = await this.UserService.storeUserByPhoneNumber(
         phone_number,
@@ -49,7 +47,7 @@ class AuthController {
         password,
         role
       );
-      res.json({ status: "success", message: "Пользователь успешно создан" });
+      res.status(200).send({ status: "success", message: "Пользователь успешно создан" });
     }
 
     // req.body.role="USER"
@@ -70,7 +68,6 @@ class AuthController {
   getPhoneCode = async (req, res) => {
     const { phone_number } = req.query;
     const rand = await this.GenerateRand.pin();
-    console.log(rand);
     let phoneMessage = await this.SmsProstoService.sendMessage(
       phone_number,
       rand
@@ -90,7 +87,6 @@ class AuthController {
   //signinfcmtoken
   signIn = async (req, res) => {
     const { phone_number, password, fcm_token } = req.body;
-    console.log(fcm_token, "fcm_token");
     
     let token = await this.AccessTokenService.storeByPhoneNumber(
       phone_number,
@@ -113,17 +109,13 @@ class AuthController {
       token: token,
     });
     // const { phone_number, password } = req.body;
-    // console.log("login user");
     // let token = await this.AccessTokenService.storeByPhoneNumber(phone_number,password);
 
     // if(!token || token == 0){
     //     return res.status(403).json({"message":"Вы ввели неверный номер телефона или пароль"})
     // }
 
-    // console.log({
-    //     "message":"Вы успешно вошли в систему",
-    //     "token":token
-    // });
+  
     // return res.json({
     //     "message":"Вы успешно вошли в систему",
     //     "token":token
@@ -202,19 +194,22 @@ class AuthController {
     if(authHeader){
       const token1 = authHeader.split(" ")[1];
       const user1 = jwt.decode(token1);
-      console.log("authHeader", authHeader);
-      // console.log("fcm_token", req.body.fcm_token);
+ 
       
       if (req.body.fcm_token) {
-        await this.UserService.destroyFromCollection(
-          user1.id,
-          req.body.fcm_token,
-          "fcm_token"
+        await User.findOneAndUpdate(
+          { _id: user1.id }, 
+          { $pull: { fcm_token: req.body.fcm_token } }, // Update action
+          { new: true } // Return the updated document
         );
-        // console.log("res1", res1);
+        // await this.UserService.destroyFromCollection(
+        //   user1.id,
+        //   req.body.fcm_token,
+        //   "fcm_token"
+        // );
+        // // console.log("res1", res1);
         
       }
-      console.log("token1", token1);
       
       return res.send({message: "Вы вышли из системы" });
     }

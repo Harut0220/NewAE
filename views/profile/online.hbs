@@ -73,7 +73,7 @@
                 </thead>
                 <tbody id="tbody1">
                    {{#if events}}
-                      {{#optionsCompanyArrays events "_id" "companyName" "owner" "startHour" "endHour" "rating" "category" "place_name" "likes" "status"}}
+                      {{#optionsCompanyArrays events "_id" "companyName" "owner" "startHour" "endHour" "rating" "category" "address" "likes" "status"}}
                          <tr>
                           <td class="td">
                               <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{id}}">
@@ -91,7 +91,7 @@
                             </td>
                           {{!-- <td class="td">{{lng situation "ru"}}</td> --}}
                           {{!-- <td class="td">{{startHour}}-{{endHour}}</td> --}}
-                          <td class="td">{{place_name}}</td>
+                          <td class="td">{{address}}</td>
                           <td class="td"><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
                           <td class="td" style="text-align:center;">
                             {{#if (notEq status 3) }}
@@ -123,8 +123,8 @@
       <script src="/js/axios.js"></script>
 
       <script>
-                const geoCordLatit = "{{ event.latit }}";
-        const geoCordLotit = "{{ event.longit }}";
+                const geoCordLatit = "{{ event.latitude }}";
+        const geoCordLotit = "{{ event.longitude }}";
         const geoPath = `https://api.geoapify.com/v1/geocode/reverse?lat=${geoCordLatit}&lon=${geoCordLotit}&apiKey=5d33a1ddd9db4ee8862f3de928c21e89`;
          axios.get(geoPath).then((d)=>{
           const al = document.getElementById('addressLine');

@@ -21,6 +21,13 @@ import EventViews from "../models/event/EventView.js";
 import EventRating from "../models/event/EventRating.js";
 import EventParticipants from "../models/event/EventParticipants.js";
 import EventAnswerLikes from "../models/event/EventCommentAnswerLike.js";
+import User from "../models/User.js";
+import EventCommentAnswerLike from "../models/event/EventCommentAnswerLike.js";
+import Role from "../models/Role.js";
+import NotificatationList from "../models/NotificationList.js";
+import EventCategory from "../models/event/EventCategory.js";
+import Notification from "../models/Notification.js";
+
 class EventService {
   constructor() {
     this.UserService = new UserService();
@@ -125,7 +132,14 @@ class EventService {
       },
       {
         path: "owner",
-        select: ["name", "surname", "email", "phone_number", "avatar"],
+        select: [
+          "name",
+          "surname",
+          "email",
+          "phone_number",
+          "avatar",
+          "notifEvent",
+        ],
       },
       {
         path: "favorites",
@@ -200,67 +214,53 @@ class EventService {
       .lean();
   };
 
-  store = async (data, userId) => {
+  store = async (data, user) => {
     const d = data.body;
-    
-    
-    
-    d.owner = userId;
 
-    if (d.latit && d.longit) {
+    d.owner = user;
 
-      const pLoc = {
-        type: "Point",
-        coordinates: [Number(d.latit),Number(d.longit)],
-      };
-
-      d.location = pLoc;
-      console.log(d.location,"d.location");
-    }
     if (d.images && d.images.length) {
       let imgArr = [];
       for (const image of d.images) {
         let img = await EventImage.create({ name: image });
+
         imgArr.push(img);
       }
       d.images = imgArr;
     }
 
     const category = await this.EventCategoryService.findById(d.category);
-    // if(data.files && data.files.images){
-    //     let UploadServ = new UploadService()
-    //     d.images = []
-    //     for(let i=0;i<data.files.images.length;i++){
-    //         let path = UploadServ.store(data.files.images[i],'events')
-    //         let img = await EventImage.create({"name":path});
-    //         d.images.push(img)
-    //     }
-    // }
+
     let event = await Event.create(d);
+
     const evLink = `alleven://eventDetail/${event._id}`;
     await this.NotificationService.store({
       status: 2,
-      date_time: new Date(),
+      date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
       user: d.owner,
-      type: "message",
+      type: "Новая события",
       message: `Ваше событие ${d.name} находится на модерации`,
       categoryIcon: category.avatar,
       event: event._id,
       link: evLink,
     });
-    notifEvent.emit(
-      "send",
-      d.owner,
-      JSON.stringify({
-        type: "message",
-        date_time: new Date(),
-        message: `Ваше событие ${d.name} находится на модерации`,
-        categoryIcon: category.avatar,
-        link: evLink,
-      })
-    );
 
-    await this.UserService.pushInCollection(userId, event._id, "events");
+    const userDb = await User.findById(user);
+    if (userDb.notifEvent) {
+      notifEvent.emit(
+        "send",
+        d.owner,
+        JSON.stringify({
+          type: "Новая события",
+          date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+          message: `Ваше событие ${d.name} находится на модерации`,
+          categoryIcon: category.avatar,
+          link: evLink,
+        })
+      );
+    }
+
+    await this.UserService.pushInCollection(user, event._id, "events");
     return event;
   };
 
@@ -316,13 +316,7 @@ class EventService {
     if (!event) {
       return 0;
     }
-    if (data.latit && data.longit) {
-      const pLoc = {
-        type: "Point",
-        coordinates: [data.latit, data.longit],
-      };
-      data.location = pLoc;
-    }
+
     const evLink = `alleven://eventDetail/${event._id}`;
 
     if (data.status && data.status != "0" && event.owner) {
@@ -337,7 +331,7 @@ class EventService {
 
       let msg =
         data.status == 1
-          ? `Ваше событие ${event.category.name} ${event.name} одобрено модератором. Теперь оно на карте города`
+          ? `Ваше событие ${event.category.name} ${event.name} одобрено модератором. Теперь оно на карте города.`
           : `К сожалению, ваше событие ${event.category.name} ${event.name} отклонено модератором, причина - ${data.status}`;
       await this.NotificationService.store({
         status: 2,
@@ -349,21 +343,23 @@ class EventService {
         categoryIcon: event.category.avatar,
         event: event._id,
       });
-      notifEvent.emit(
-        "send",
-        event.owner._id.toString(),
-        JSON.stringify({
-          type: "message",
-          date_time: new Date(),
-          message: msg,
-          link: evLink,
-          categoryIcon: event.category.avatar,
-        })
-      );
+      if (event.owner.notifEvent) {
+        notifEvent.emit(
+          "send",
+          event.owner._id.toString(),
+          JSON.stringify({
+            type: "message",
+            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+            message: msg,
+            link: evLink,
+            categoryIcon: event.category.avatar,
+          })
+        );
+      }
     } else if (data.status == "0" && event.owner) {
       await this.NotificationService.store({
         status: 2,
-        date_time: new Date(),
+        date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
         user: event.owner._id,
         type: "message",
         message: `Ваше событие ${event.category.name} ${event.name} находится на модерации`,
@@ -371,17 +367,19 @@ class EventService {
         categoryIcon: event.category.avatar,
         event: event._id,
       });
-      notifEvent.emit(
-        "send",
-        event.owner._id.toString(),
-        JSON.stringify({
-          type: "message",
-          date_time: new Date(),
-          message: `Ваше событие ${event.category.name} ${event.name} находится на модерации`,
-          link: evLink,
-          categoryIcon: event.category.avatar,
-        })
-      );
+      if (event.owner.notifEvent) {
+        notifEvent.emit(
+          "send",
+          event.owner._id.toString(),
+          JSON.stringify({
+            type: "message",
+            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+            message: `Ваше событие ${event.category.name} ${event.name} находится на модерации`,
+            link: evLink,
+            categoryIcon: event.category.avatar,
+          })
+        );
+      }
       notifEvent.emit(
         "send",
         "ADMIN",
@@ -394,7 +392,7 @@ class EventService {
         })
       );
     }
-
+    // data.status=2
     await event.updateOne(data);
     return event;
   };
@@ -421,15 +419,110 @@ class EventService {
   };
 
   findManyById = async (IDs) => {
-    // console.log(IDs)
     return Event.find({ _id: IDs });
   };
 
+  // destroy = async (des_events) => {
+
+  //   setTimeout(async () => {
+
+  //   if (Array.isArray(des_events)) {
+  //     for (let i = 0; i < des_events.length; i++) {
+  //       const event = await Event.findById(des_events[i]);
+
+  //       if (!event) {
+  //         throw new Error("Event not found");
+  //       }
+
+  //       // Find all related comments
+  //       const comments = await EventComment.find({
+  //         event: des_events[i],
+  //       });
+
+  //       // For each comment, delete related answers and likes
+  //       for (const comment of comments) {
+  //         // Delete all likes related to the comment
+  //         await EventCommentLikes.deleteMany({ commentId: comment._id });
+
+  //         // Find all answers related to the comment
+  //         const answers = await EventCommentAnswer.find({
+  //           commentId: comment._id,
+  //         });
+
+  //         // For each answer, delete related likes
+  //         for (const answer of answers) {
+  //           await EventAnswerLikes.deleteMany({ answerId: answer._id });
+  //         }
+
+  //         // Delete all answers related to the comment
+  //         await EventCommentAnswer.deleteMany({ commentId: comment._id });
+  //       }
+
+  //       // Delete all comments related to the meeting
+  //       await EventComment.deleteMany({ meetingId: des_events[i] });
+  //       await EventImage.deleteMany({ meetingId: des_events[i] });
+  //       await EventLikes.deleteMany({ meetingId: des_events[i] });
+  //       await EventFavorites.deleteMany({ meetingId: des_events[i] });
+  //       await EventParticipantsSpot.deleteMany({ meetingId: des_events[i] });
+  //       await EventViews.deleteMany({ meetingId: des_events[i] });
+  //       await EventRating.deleteMany({ meetingId: des_events[i] });
+  //       await EventParticipants.deleteMany({ meetingId: des_events[i] });
+
+  //       await event.remove();
+  //       console.log("Meetings and all related data deleted successfully");
+  //     }
+  //   }
+  //   if (typeof des_events === "string") {
+  //     const event = await Event.findById(des_events);
+
+  //     if (!event) {
+  //       throw new Error("Meeting not found");
+  //     }
+
+  //     // Find all related comments
+  //     const comments = await EventComment.find({ meetingId: des_events });
+
+  //     // For each comment, delete related answers and likes
+  //     for (const comment of comments) {
+  //       // Delete all likes related to the comment
+  //       await EventCommentLikes.deleteMany({ commentId: comment._id });
+
+  //       // Find all answers related to the comment
+  //       const answers = await EventCommentAnswer.find({
+  //         commentId: comment._id,
+  //       });
+
+  //       // For each answer, delete related likes
+  //       for (const answer of answers) {
+  //         await EventAnswerLikes.deleteMany({ answerId: answer._id });
+  //       }
+
+  //       // Delete all answers related to the comment
+  //       await EventCommentAnswer.deleteMany({ commentId: comment._id });
+  //     }
+
+  //     // Delete all comments related to the meeting
+  //     await EventComment.deleteMany({ meetingId: des_events });
+  //     await EventImage.deleteMany({ meetingId: des_events });
+  //     await EventLikes.deleteMany({ meetingId: des_events });
+  //     await EventFavorites.deleteMany({ meetingId: des_events });
+  //     await EventParticipantsSpot.deleteMany({ meetingId: des_events });
+  //     await EventViews.deleteMany({ meetingId: des_events });
+  //     await EventRating.deleteMany({ meetingId: des_events });
+  //     await EventParticipants.deleteMany({ meetingId: des_events });
+
+  //     await event.remove();
+
+  //     console.log("Meeting and all related data deleted successfully");
+  //   }
+  // },2000)
+
+  //   console.log("successfully deleted");
+
+  //   return { message: "success" };
+  // };
+
   destroy = async (des_events) => {
-
-    setTimeout(async () => {
-      
-   
     if (Array.isArray(des_events)) {
       for (let i = 0; i < des_events.length; i++) {
         const event = await Event.findById(des_events[i]);
@@ -438,187 +531,88 @@ class EventService {
           throw new Error("Event not found");
         }
 
-        // Find all related comments
+        for (const imageId of event.images) {
+          await EventImage.findByIdAndDelete(imageId);
+        }
+
         const comments = await EventComment.find({
           event: des_events[i],
         });
 
-        // For each comment, delete related answers and likes
         for (const comment of comments) {
-          // Delete all likes related to the comment
           await EventCommentLikes.deleteMany({ commentId: comment._id });
 
-          // Find all answers related to the comment
           const answers = await EventCommentAnswer.find({
             commentId: comment._id,
           });
 
-          // For each answer, delete related likes
           for (const answer of answers) {
-            await EventAnswerLikes.deleteMany({ answerId: answer._id });
+            await EventCommentAnswerLike.deleteMany({ answerId: answer._id });
           }
 
-          // Delete all answers related to the comment
           await EventCommentAnswer.deleteMany({ commentId: comment._id });
         }
 
-        // Delete all comments related to the meeting
-        await EventComment.deleteMany({ meetingId: des_events[i] });
-        await EventImage.deleteMany({ meetingId: des_events[i] });
-        await EventLikes.deleteMany({ meetingId: des_events[i] });
-        await EventFavorites.deleteMany({ meetingId: des_events[i] });
-        await EventParticipantsSpot.deleteMany({ meetingId: des_events[i] });
-        await EventViews.deleteMany({ meetingId: des_events[i] });
-        await EventRating.deleteMany({ meetingId: des_events[i] });
-        await EventParticipants.deleteMany({ meetingId: des_events[i] });
-
+        await EventComment.deleteMany({ event: des_events[i] });
+        // await EventImage.deleteMany({ event: des_events[i] });
+        await EventLikes.deleteMany({ eventId: des_events[i] });
+        await EventFavorites.deleteMany({ eventId: des_events[i] });
+        await EventViews.deleteMany({ eventId: des_events[i] });
+        await EventRating.deleteMany({ event: des_events[i] });
+        await EventImpressionImages.deleteMany({ event: des_events[i] });
+        await EventParticipantsSpot.deleteMany({ eventId: des_events[i] });
+        await EventParticipants.deleteMany({ eventId: des_events[i] });
+        await User.findByIdAndUpdate(des_events[i], {
+          $pull: { events: des_events[i] },
+        });
         await event.remove();
-        console.log("Meetings and all related data deleted successfully");
+        console.log("Event and all related data deleted successfully");
       }
-    }
-    if (typeof des_events === "string") {
+    } else if (typeof des_events === "string") {
       const event = await Event.findById(des_events);
 
       if (!event) {
-        throw new Error("Meeting not found");
+        throw new Error("Event not found");
       }
 
-      // Find all related comments
-      const comments = await EventComment.find({ meetingId: des_events });
+      for (const imageId of event.images) {
+        await EventImage.findByIdAndDelete(imageId);
+      }
 
-      // For each comment, delete related answers and likes
+      const comments = await EventComment.find({
+        companyId: des_events,
+      });
+
       for (const comment of comments) {
-        // Delete all likes related to the comment
         await EventCommentLikes.deleteMany({ commentId: comment._id });
 
-        // Find all answers related to the comment
         const answers = await EventCommentAnswer.find({
           commentId: comment._id,
         });
 
-        // For each answer, delete related likes
         for (const answer of answers) {
-          await EventAnswerLikes.deleteMany({ answerId: answer._id });
+          await EventCommentAnswerLike.deleteMany({ answerId: answer._id });
         }
 
-        // Delete all answers related to the comment
         await EventCommentAnswer.deleteMany({ commentId: comment._id });
       }
 
-      // Delete all comments related to the meeting
-      await EventComment.deleteMany({ meetingId: des_events });
-      await EventImage.deleteMany({ meetingId: des_events });
-      await EventLikes.deleteMany({ meetingId: des_events });
-      await EventFavorites.deleteMany({ meetingId: des_events });
-      await EventParticipantsSpot.deleteMany({ meetingId: des_events });
-      await EventViews.deleteMany({ meetingId: des_events });
-      await EventRating.deleteMany({ meetingId: des_events });
-      await EventParticipants.deleteMany({ meetingId: des_events });
-
+      await EventComment.deleteMany({ event: des_events });
+      await EventLikes.deleteMany({ eventId: des_events });
+      await EventFavorites.deleteMany({ eventId: des_events });
+      await EventViews.deleteMany({ eventId: des_events });
+      await EventRating.deleteMany({ event: des_events });
+      await EventImpressionImages.deleteMany({ event: des_events });
+      await EventParticipantsSpot.deleteMany({ eventId: des_events });
+      await EventParticipants.deleteMany({ eventId: des_events });
+      await User.findByIdAndUpdate(des_events, {
+        $pull: { events: des_events },
+      });
       await event.remove();
-
-      console.log("Meeting and all related data deleted successfully");
     }
-  },2000)
 
-    console.log("successfully deleted");
-    
-    return { message: "success" };
+    return Event.deleteMany({ _id: des_events });
   };
-  destroyCompany = async (des_events) => {
-    if (Array.isArray(des_events)) {
-      for (let i = 0; i < des_events.length; i++) {
-        const event = await Event.findById(des_events[i]);
-
-        if (!event) {
-          throw new Error("Event not found");
-        }
-
-        // Find all related comments
-        const comments = await EventComment.find({
-          event: des_events[i],
-        });
-
-        // For each comment, delete related answers and likes
-        for (const comment of comments) {
-          // Delete all likes related to the comment
-          await EventCommentLikes.deleteMany({ commentId: comment._id });
-
-          // Find all answers related to the comment
-          const answers = await EventCommentAnswer.find({
-            commentId: comment._id,
-          });
-
-          // For each answer, delete related likes
-          for (const answer of answers) {
-            await EventAnswerLikes.deleteMany({ answerId: answer._id });
-          }
-
-          // Delete all answers related to the comment
-          await EventCommentAnswer.deleteMany({ commentId: comment._id });
-        }
-
-        // Delete all comments related to the meeting
-        await EventComment.deleteMany({ meetingId: des_events[i] });
-        await EventImage.deleteMany({ meetingId: des_events[i] });
-        await EventLikes.deleteMany({ meetingId: des_events[i] });
-        await EventFavorites.deleteMany({ meetingId: des_events[i] });
-        await EventParticipantsSpot.deleteMany({ meetingId: des_events[i] });
-        await EventViews.deleteMany({ meetingId: des_events[i] });
-        await EventRating.deleteMany({ meetingId: des_events[i] });
-        await EventParticipants.deleteMany({ meetingId: des_events[i] });
-
-        await event.remove();
-        console.log("Meetings and all related data deleted successfully");
-      }
-    }
-    if (typeof des_events === "string") {
-      const event = await Event.findById(des_events);
-
-      if (!event) {
-        throw new Error("Meeting not found");
-      }
-
-      // Find all related comments
-      const comments = await EventComment.find({ meetingId: des_events });
-
-      // For each comment, delete related answers and likes
-      for (const comment of comments) {
-        // Delete all likes related to the comment
-        await EventCommentLikes.deleteMany({ commentId: comment._id });
-
-        // Find all answers related to the comment
-        const answers = await EventCommentAnswer.find({
-          commentId: comment._id,
-        });
-
-        // For each answer, delete related likes
-        for (const answer of answers) {
-          await EventAnswerLikes.deleteMany({ answerId: answer._id });
-        }
-
-        // Delete all answers related to the comment
-        await EventCommentAnswer.deleteMany({ commentId: comment._id });
-      }
-
-      // Delete all comments related to the meeting
-      await EventComment.deleteMany({ meetingId: des_events });
-      await EventImage.deleteMany({ meetingId: des_events });
-      await EventLikes.deleteMany({ meetingId: des_events });
-      await EventFavorites.deleteMany({ meetingId: des_events });
-      await EventParticipantsSpot.deleteMany({ meetingId: des_events });
-      await EventViews.deleteMany({ meetingId: des_events });
-      await EventRating.deleteMany({ meetingId: des_events });
-      await EventParticipants.deleteMany({ meetingId: des_events });
-
-      await event.remove();
-
-      console.log("Meeting and all related data deleted successfully");
-    }
-    return { message: "success" };
-    return { message: "success" };
-  };
-
   nearEvent = async (data) => {
     const user = await this.UserService.find(data.user_id);
     if (
@@ -712,7 +706,7 @@ class EventService {
         },
         {
           path: "participants",
-          populate: { path: "userId", populate: "roles" },
+          populate: { path: "user", populate: "roles" },
         },
         // {
         //     path : 'in_place',
@@ -721,14 +715,13 @@ class EventService {
         // },
       ])
       .lean();
-      console.log("notif change situation", events);
-      
+    console.log("notif change situation", events);
+
     const nowDate = new Date();
     const nowMonth = nowDate.getMonth();
     const nowDay = nowDate.getDate();
     const nowYear = nowDate.getFullYear();
 
-    // console.log(month,day,year)
 
     for (let e = 0; e < events.length; e++) {
       let situation = "upcoming";
@@ -743,14 +736,13 @@ class EventService {
         if (nowDay == eventDay - 1) {
           for (let v = 0; v < events[e].participants.length; v++) {
             if (
-              (events[e].participants[v].userId.roles.name = "USER" && !events[e].end)
+              (events[e].participants[v].user.roles.name =
+                "USER" && !events[e].situation === "passed")
             ) {
               let ev_st_time = new Date(events[e].started_time);
               ev_st_time.setHours(+ev_st_time.getHours() - 1);
               const evLink = `alleven://eventDetail/${events[e]._id}`;
-              //await this.NotificationService.store({status:2,date_time:nowDate,user:events[e].visits[v],type:'confirm_come',event:events[e]._id,message:`Событие ${events[e].name}, начнется «${eventYear}-${eventMonth}-${eventDay}» в «${eventMinute}:${eventSecunde}», не опоздайте`});
-              //notifEvent.emit('send',events[e].visits[v],JSON.stringify({status:2,date_time:nowDate,user:events[e].visits[v],type:'confirm_come',event:events[e]._id,message:`Событие ${events[e].name}, начнется «${eventYear}-${eventMonth}-${eventDay}» в «${eventMinute}:${eventSecunde}», не опоздайте`}));
-              // await this.NotificationService.store({status:1,date_time:ev_st_time,user:events[e].visits[v],type:'confirm_come',event:events[e]._id,message:`Событие ${events[e].name}, начнется «${eventYear}-${eventMonth}-${eventDay}» в «${eventMinute}:${eventSecunde}», не опоздайте`,notif_type:'Событие началось'});
+
               await this.NotificationService.store({
                 status: 1,
                 link: evLink,
@@ -771,27 +763,15 @@ class EventService {
           situation = "upcoming";
         } else if (nowDay > eventDay) {
           let evn = await this.find(events[e]._id);
-          evn.status = 3;
+          // evn.status = 3;
           await evn.save();
 
           situation = "passed";
 
           for (let p = 0; p < events[e].participantsSpot.length; p++) {
             let evnt = await this.find(events[e]._id);
-            evnt.end = true;
+            evnt.situation = "passed";
             await evnt.save();
-
-            // console.log(events[e].visits[p])
-
-            // if(events[e].visits.length && events[e].visits[p].roles && events[e].visits[p].roles.name == 'VISITOR' && !events[e].end){
-            // let msg = `Оцените прошедшее событие ${events[e].name}`;
-            // await this.NotificationService.store({type:'message',date_time:new Date(),status:2,message:msg,user:events[e].visits[p]._id.toString(),event_situation:'passed'});
-            // notifEvent.emit('send',events[e].visits[p]._id.toString(),JSON.stringify({status:2,date_time:nowDate,type:'message',message:msg,event_situation:'passed'}));
-
-            // let evnt = await this.find(events[e]._id);
-            // evnt.end = true;
-            // await evnt.save()
-            // }
           }
         }
       } else if (eventDate.getTime() < nowDate.getTime()) {
@@ -864,20 +844,8 @@ class EventService {
   destroyImage = async (id) => {
     return await EventImage.findByIdAndDelete(id);
   };
-  destroyCompanyImage = async (id) => {
-    const dbCompanyImage = await companyImage.findById(id);
-    const dbCompany = await companyModel(dbCompanyImage.companyId);
-    let index = dbCompany.images.indexOf(id);
-    let res;
-    if (index !== -1) {
-      res = dbCompany.images.splice(index, 1); // Remove 1 element at index position
-    }
-    dbCompany.images = res;
-    await dbCompany.save();
-    return await companyImage.findByIdAndDelete(id);
-  };
 
-  destroyByUserId = async (user_id) => {
+  destroyByuser = async (user_id) => {
     return await Event.deleteMany({ owner: user_id });
   };
 
@@ -898,9 +866,8 @@ class EventService {
           },
         },
         {
-            path : 'participants',
-            populate  : {path:"userId",populate:"roles"}
-
+          path: "participants",
+          populate: { path: "user", populate: "_id roles" },
         },
         // {
         //     path : 'in_place',
@@ -922,29 +889,32 @@ class EventService {
       if (isTodayAndLessOneHours) {
         for (let v = 0; v < events[e].participants.length; v++) {
           if (
-            (events[e].participants[v].userId.roles.name = "USER" && !events[e].end)
+            (events[e].participants[v].user.roles.name =
+              "USER" && !events[e].situation === "passed")
           ) {
             let ev_st_time = new Date(events[e].started_time);
             const evLink = `alleven://eventDetail/${events[e]._id}`;
-            notifEvent.emit(
-              "send",
-              events[e].participants[v],
-              JSON.stringify({
-                link: evLink,
-                status: 2,
-                date_time: ev_st_time,
-                user: events[e].participants[v],
-                type: "confirm_come",
-                event: events[e]._id,
-                message: `Событие ${events[e].name}, начнется через 1 час. Если вы пойдете, не забудьте поделиться впечатлениями!`,
-                categoryIcon: events[e].category.avatar,
-                event: events[e]._id,
-              })
-            );
+            if (events[e].participants[v].notifEvent) {
+              notifEvent.emit(
+                "send",
+                events[e].participants[v].user._id.toString(),
+                JSON.stringify({
+                  link: evLink,
+                  status: 2,
+                  date_time: ev_st_time,
+                  user: events[e].participants[v],
+                  type: "confirm_come",
+                  event: events[e]._id,
+                  message: `Событие ${events[e].name}, начнется через 1 час. Если вы пойдете, не забудьте поделиться впечатлениями!`,
+                  categoryIcon: events[e].category.avatar,
+                  event: events[e]._id,
+                })
+              );
+            }
             await this.NotificationService.store({
               status: 2,
               date_time: ev_st_time,
-              user: events[e].participants[v],
+              user: events[e].participants[v].user._id,
               type: "confirm_come",
               event: events[e]._id,
               message: `Событие ${events[e].name}, начнется через 1 час. Если вы пойдете, не забудьте поделиться впечатлениями!`,
@@ -967,7 +937,7 @@ class EventService {
             events[e].participantsSpot.length &&
             events[e].participantsSpot[p].roles &&
             events[e].participantsSpot[p].roles.name == "USER" &&
-            !events[e].end
+            !events[e].situation === "passed"
           ) {
             let msg = `Оцените прошедшее событие ${events[e].name}`;
             const evLink = `alleven://eventDetail/${events[e]._id}`;
@@ -977,24 +947,26 @@ class EventService {
               date_time: new Date().toLocaleString(),
               status: 2,
               message: msg,
-              user: events[e].visits[p]._id.toString(),
+              user: events[e].participantsSpot[p]._id.toString(),
               event_situation: "passed",
               categoryIcon: events[e].category.avatar,
               event: events[e]._id,
             });
-            notifEvent.emit(
-              "send",
-              events[e].visits[p]._id.toString(),
-              JSON.stringify({
-                link: evLink,
-                status: 2,
-                date_time: new Date().toLocaleString(),
-                type: "message",
-                message: msg,
-                event_situation: "passed",
-                categoryIcon: events[e].category.avatar,
-              })
-            );
+            if (events[e].participantsSpot[p].notifEvent) {
+              notifEvent.emit(
+                "send",
+                events[e].participantsSpot[p]._id.toString(),
+                JSON.stringify({
+                  link: evLink,
+                  status: 2,
+                  date_time: new Date().toLocaleString(),
+                  type: "message",
+                  message: msg,
+                  event_situation: "passed",
+                  categoryIcon: events[e].category.avatar,
+                })
+              );
+            }
           }
         }
       }
@@ -1037,9 +1009,9 @@ class EventService {
     );
   };
 
-  findOwnerImpressions = async (userId) => {
+  findOwnerImpressions = async (user) => {
     const eventIds = await Event.find({
-      owner: userId,
+      owner: user,
       status: 1,
     }).distinct("_id");
 
@@ -1079,9 +1051,9 @@ class EventService {
       ]);
   };
 
-  findVisitorImpressions = async (userId) => {
+  findVisitorImpressions = async (user) => {
     const impressionsIds = await EventImpressionImages.find({
-      user: userId,
+      user: user,
     }).distinct("event");
     return await Event.find({
       _id: { $in: impressionsIds },
@@ -1134,18 +1106,65 @@ class EventService {
             message: `Разместите информацию о вашем будущем событии.`,
             link,
           });
-          notifEvent.emit(
-            "send",
-            organizer._id.toString(),
-            JSON.stringify({
-              type: "create_new",
-              date_time: new Date(),
-              message: `Разместите информацию о вашем будущем событии.`,
-              link,
-            })
-          );
+          if (organizer.notifEvent) {
+            notifEvent.emit(
+              "send",
+              organizer._id.toString(),
+              JSON.stringify({
+                type: "create_new",
+                date_time: new Date(),
+                message: `Разместите информацию о вашем будущем событии.`,
+                link,
+              })
+            );
+          }
         }
       }
+    }
+    return 1;
+  };
+
+  destroyByUserId = async (id) => {
+    const events = await Event.find({
+      owner: id,
+    });
+
+    for (let i = 0; i < events.length; i++) {
+      if (!events) {
+        throw new Error("Event not found");
+      }
+
+      const comments = await EventComment.find({
+        event: events[i]._id,
+      });
+
+      for (const comment of comments) {
+        await EventCommentLikes.deleteMany({ commentId: comment._id });
+
+        const answers = await EventCommentAnswer.find({
+          commentId: comment._id,
+        });
+
+        for (const answer of answers) {
+          await EventCommentAnswerLike.deleteMany({ answerId: answer._id });
+        }
+
+        await EventCommentAnswer.deleteMany({ commentId: comment._id });
+      }
+
+      await EventComment.deleteMany({ event: events[i]._id });
+      await EventLikes.deleteMany({ eventId: events[i]._id });
+      await EventFavorites.deleteMany({ eventId: events[i]._id });
+      await EventViews.deleteMany({ eventId: events[i]._id });
+      await EventRating.deleteMany({ event: events[i]._id });
+      await EventImpressionImages.deleteMany({ event: events[i]._id });
+      await EventParticipantsSpot.deleteMany({ eventId: events[i]._id });
+      await EventParticipants.deleteMany({ eventId: events[i]._id });
+      await User.findByIdAndUpdate(events[i]._id, {
+        $pull: { events: events[i]._id },
+      });
+      await events.remove();
+      console.log("Meetings and all related data deleted successfully");
     }
     return 1;
   };
