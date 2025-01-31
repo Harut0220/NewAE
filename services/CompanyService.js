@@ -25,6 +25,132 @@ import companyHotDealRegistrations from "../models/company/companyHotDealRegistr
 import companyModel from "../models/company/companyModel.js";
 
 const companyService = {
+  myparticipant: async (id, latitude, longitude) => {
+    const results = [];
+    const registrations = await servicesRegistrations
+      .find({ user: id })
+      .populate("serviceId");
+
+    for (let i = 0; i < registrations.length; i++) {
+      const obj = {};
+      const company = await Company.findById(
+        registrations[i].serviceId.companyId
+      )
+        .populate("images")
+        .populate("category");
+      obj.date = registrations[i].date;
+      obj.status = registrations[i].status;
+      obj.type = registrations[i].serviceId.type;
+      obj.cost = registrations[i].serviceId.cost;
+      obj.serviceDescription = registrations[i].serviceId.description;
+      obj.companyName = company.companyName;
+      obj.latitude = company.latitude;
+      obj.longitude = company.longitude;
+      obj.ratingCalculated = company.ratingCalculated;
+      obj.address = company.address;
+      obj.startHour = company.startHour;
+      obj.endHour = company.endHour;
+      obj.comments = company.comments;
+      obj.kilometr = company.kilometr;
+      obj.open = company.open;
+      obj.id = company._id;
+      obj.images = company.images;
+      obj.category = company.category.name;
+      obj.isRating = false;
+      const is_rating = companyRating.find({
+        companyId: company._id,
+        user: id,
+      });
+      
+      if (is_rating[0]) {
+        obj.isRating = true;
+      }
+      const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+      function isCompanyOpen(startHour, closeHour, currentTime) {
+        const parseTime = (time) => {
+          const [hour, minute] = time.split(":").map(Number);
+          return { hour, minute };
+        };
+
+        const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+        const start = parseTime(startHour);
+        const close = parseTime(closeHour);
+        const current = parseTime(currentTime);
+
+        const startMinutes = toMinutes(start);
+        const closeMinutes =
+          toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+        const currentMinutes = toMinutes(current);
+
+        return currentMinutes >= startMinutes && currentMinutes < closeMinutes;
+      }
+
+      const openBool = isCompanyOpen(company.startHour, company.endHour, hours);
+
+      function calculateDistance(lat1, lon1, lat2, lon2) {
+        const earthRadius = 6371;
+
+        const latRad1 = (lat1 * Math.PI) / 180;
+        const lonRad1 = (lon1 * Math.PI) / 180;
+        const latRad2 = (lat2 * Math.PI) / 180;
+        const lonRad2 = (lon2 * Math.PI) / 180;
+
+        // Haversine formula
+        const dLat = latRad2 - latRad1;
+        const dLon = lonRad2 - lonRad1;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(latRad1) *
+            Math.cos(latRad2) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = earthRadius * c;
+
+        return distance;
+      }
+      if (!latitude && !longitude) {
+        obj.kilometr = null;
+      } else {
+        obj.kilometr = calculateDistance(
+          latitude,
+          longitude,
+          company.latitude,
+          company.longitude
+        );
+      }
+
+      obj.open = openBool;
+      results.push(obj);
+    }
+
+    function separateUpcomingAndPassed(events) {
+      const upcoming = [];
+      const passed = [];
+
+      events.forEach((event) => {
+        const dateNow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+
+        if (event.date > dateNow) {
+          upcoming.push(event);
+        } else {
+          passed.push(event);
+        }
+      });
+
+      return { upcoming, passed };
+    }
+
+    const upcomPass = separateUpcomingAndPassed(results);
+
+    return {
+      message: "success",
+      upcoming: upcomPass.upcoming,
+      passed: upcomPass.passed,
+    };
+  },
   // dealsRegisters: async (id) => {
   //   const result = await companyHotDeals
   //     .find({ companyId: id })
@@ -45,20 +171,26 @@ const companyService = {
       startTime: findHotDeal.date,
     });
     await dealRegister.save();
-    await companyHotDeals.findByIdAndUpdate(dealId, {
-      $push: { registration: dealRegister._id },
-    });
+    await companyHotDeals.findByIdAndUpdate(
+      dealId,
+      {
+        $push: { registration: dealRegister._id },
+      },
+      { situation: "passed" },
+      { free: false }
+    );
     const companyDb = await Company.findByIdAndUpdate(findHotDeal.companyId, {
       $push: { participants: userId },
     });
     return { success: true, message: "Успешно зарегистрировано" };
   },
-  addHotDeals: async (companyId, description, cost, date) => {
+  addHotDeals: async (companyId, description, cost, date, user) => {
     const hotDeal = new companyHotDeals({
       companyId,
       description,
       cost,
       date,
+      user,
     });
     await hotDeal.save();
     const result = await Company.findOneAndUpdate(
@@ -85,8 +217,10 @@ const companyService = {
     await companyPhones.deleteMany({ companyId: data._id });
     for (let i = 0; i < data.phoneNumbers.length; i++) {
       const phone = new companyPhones({
-        phone: data.phoneNumbers[i],
+        number: data.phoneNumbers[i].number,
         companyId: data._id,
+        whatsApp:data.phoneNumbers[i].whatsApp,
+        telegram:data.phoneNumbers[i].telegram
       });
       await phone.save();
       await companyModel.findByIdAndUpdate(data._id, {
@@ -94,12 +228,12 @@ const companyService = {
       });
     }
     const newData = {};
-    newData.companyName = data.name;
+    newData.companyName = data.companyName;
     newData.web = data.web;
     newData.latitude = data.latitude;
     newData.longitude = data.longitude;
     newData.address = data.address;
-    newData.email = data.email;
+    // newData.email = data.email;
     newData.startHour = data.startHour;
     newData.endHour = data.endHour;
     newData.days = data.days;
@@ -113,8 +247,8 @@ const companyService = {
     const updatedCompany = await Company.findByIdAndUpdate(
       data._id,
       { ...newData, updatedAt: moment.tz(process.env.TZ).format() },
-      { new: true } 
-    );
+      { new: true }
+    ).populate("services");
 
     return updatedCompany;
   },
@@ -210,6 +344,14 @@ const companyService = {
         await companyView.deleteMany({ companyId: des_events[i] });
         await companyRating.deleteMany({ companyId: des_events[i] });
         await companyPhones.deleteMany({ companyId: des_events[i] });
+        const services = await CompanyServiceModel.find({
+          companyId: des_events[i],
+        });
+        for (let i = 0; i < services.length; i++) {
+          await servicesRegistrations.deleteMany({
+            serviceId: services[i]._id,
+          });
+        }
         await CompanyServiceModel.deleteMany({ companyId: des_events[i] });
         await companyImpressionImages.deleteMany({ companyId: des_events[i] });
         await companyHotDeals.deleteMany({ companyId: des_events[i] });
@@ -250,6 +392,12 @@ const companyService = {
       await companyView.deleteMany({ companyId: des_events });
       await companyRating.deleteMany({ companyId: des_events });
       await companyPhones.deleteMany({ companyId: des_events });
+      const services = await CompanyServiceModel.find({
+        companyId: des_events,
+      });
+      for (let i = 0; i < services.length; i++) {
+        await servicesRegistrations.deleteMany({ serviceId: services[i]._id });
+      }
       await CompanyServiceModel.deleteMany({ companyId: des_events });
       await companyHotDeals.deleteMany({ companyId: des_events });
       await companyImpressionImages.deleteMany({ companyId: des_events });
@@ -313,10 +461,9 @@ const companyService = {
   },
   online: async (user, companyId) => {
     try {
-      const company = await Company.findById(companyId);
+      const company = await Company.findByIdAndUpdate(companyId,{onlinePay:1},{new:true});
 
       const evLink = `alleven://eventDetail/${company._id}`;
- 
 
       notifEvent.emit(
         "send",
@@ -335,7 +482,6 @@ const companyService = {
   },
   commentAnswerLike: async (answerId, user) => {
     try {
-
       const isLike = await CommentAnswerLikes.findOne({
         user: user,
         answerId,
@@ -369,7 +515,6 @@ const companyService = {
   },
   commentAnswer: async (commentId, user, text) => {
     try {
-
       const comment = await CompanyComment.findById(commentId);
       const commentAnswer = new companyCommentAnswer({
         commentId,
@@ -474,11 +619,10 @@ const companyService = {
         .populate("images")
         .populate("services")
         .populate("phoneNumbers");
-      companyDb.onlinePay = false;
+      companyDb.onlinePay = 3;
       companyDb.onlineReason = status;
       await companyDb.save();
-      const userDb = await User.find(companyDb.owner);
-  
+      const userDb = await User.findById(companyDb.owner._id.toString());
 
       const evLink = `alleven://eventDetail/${companyDb._id}`;
 
@@ -489,26 +633,25 @@ const companyService = {
         type: "Онлайн оплата",
         message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}.`,
         company: companyDb._id,
+        categoryIcon: "/icon/onlinePay.png",
         link: evLink,
       };
       const nt = new Notification(dataNotif);
       await nt.save();
 
       if (userDb.notifCompany) {
-
         notifEvent.emit(
           "send",
           userDb._id.toString(),
           JSON.stringify({
             type: "Онлайн оплата",
             date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+            categoryIcon: "/icon/onlinePay.png",
             message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}`,
             link: evLink,
           })
         );
       }
-
-
 
       return companyDb;
     } catch (error) {
@@ -526,9 +669,9 @@ const companyService = {
       companyDb.status = 2;
       companyDb.rejectMessage = status;
       await companyDb.save();
-      const userDb = await User.find(companyDb.owner);
-   
-
+      
+      const userDb = await User.findById(companyDb.owner._id.toString());
+      
       const evLink = `alleven://eventDetail/${companyDb._id}`;
       const dataNotif = {
         status: 2,
@@ -537,25 +680,25 @@ const companyService = {
         type: "Онлайн оплата",
         message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}.`,
         company: companyDb._id,
+        categoryIcon: "/icon/onlinePay.png",
         link: evLink,
       };
       const nt = new Notification(dataNotif);
       await nt.save();
 
       if (userDb.notifCompany) {
-
         notifEvent.emit(
           "send",
           userDb._id.toString(),
           JSON.stringify({
             type: "Онлайн оплата",
             date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+            categoryIcon: "/icon/onlinePay.png",
             message: `К сожалению, ваше событие ${companyDb.companyName} отклонено модератором, причина - ${status}.`,
             link: evLink,
           })
         );
       }
-
 
       return companyDb;
     } catch (error) {
@@ -576,7 +719,6 @@ const companyService = {
   },
   addCompany: async (data, user) => {
     try {
-
       data.user = user;
       const longitude = data.longitude;
       const latitude = data.latitude;
@@ -638,8 +780,8 @@ const companyService = {
 
           const phonePromises = data.phoneNumbers.map(async (phoneData) => {
             const phone = new companyPhones({
-              number: phoneData.value,
-              whatsApp: phoneData.whatsUp,
+              number: phoneData.number,
+              whatsApp: phoneData.whatsApp,
               telegram: phoneData.telegram,
               companyId: company._id,
             });
@@ -673,6 +815,7 @@ const companyService = {
           session.endSession();
 
           console.log("Company and related data added successfully!");
+          
           return company;
         } catch (error) {
           console.error("Error adding company data:", error);
@@ -704,22 +847,23 @@ const companyService = {
           companyId,
         });
         await newFav.save();
-        await Company.findByIdAndUpdate(companyId, {
+       const company= await Company.findByIdAndUpdate(companyId, {
           $push: { favorites: user },
-        });
+        },  { new: true });
         await User.findByIdAndUpdate(user, {
           $push: { company_favorites: companyId },
-        });
-        return { message: "успешно добавлен в список избранных" };
+        }
+      );
+        return { message: "успешно добавлен в список избранных",favorites:company.favorites };
       } else {
         await User.findByIdAndUpdate(user, {
           $pull: { company_favorites: companyId },
         });
-        await Company.findByIdAndUpdate(companyId, {
+       const company= await Company.findByIdAndUpdate(companyId, {
           $pull: { favorites: resFav._id },
-        });
+        },  { new: true });
         await companyFavorit.findByIdAndDelete(resFav._id);
-        return { message: "матч успешно удален из списка избранных" };
+        return { message: "матч успешно удален из списка избранных",favorites:company.favorites  };
       }
     } catch (error) {
       console.error(error);
@@ -735,8 +879,6 @@ const companyService = {
   // },
   addService: async (companyId, type, description, cost, images) => {
     try {
-  
-
       const company = await Company.findOne({ _id: companyId });
       // const imageArray = [];
       // for (let z = 0; i < service.length; z++) {

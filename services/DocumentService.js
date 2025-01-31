@@ -10,7 +10,7 @@ class DocumentService{
     }
 
     getByRole = async (role) => {
-        return await Document.find({owners: role}).select('path').lean()
+        return await Document.find({owners: role})
     }
 
     getAll = async () => {
@@ -20,7 +20,6 @@ class DocumentService{
     store = async (data) => {
         let roles = await Role.find({name:data.role},{_id:1});
         data.owners = roles;
-        console.log("document",data)
         data.date=moment.tz(process.env.TZ).format('YYYY-MM-DD');
         return await Document.create(data)
         

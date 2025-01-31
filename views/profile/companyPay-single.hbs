@@ -34,7 +34,7 @@
                   <form action="/admin/profile/company/online/resolve/{{getValue event "_id"}}" method="POST" enctype="multipart/form-data" id="eventForm">
                   
                   <button type="button" class="buttonAllow" onclick="buttonFunc()">
-                    {{#if (getValue event "onlinePay")}}
+                    {{#if (eq onlinePay 2)}}
     Изменить
 {{else}}
     Одобрить

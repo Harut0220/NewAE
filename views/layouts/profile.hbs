@@ -136,7 +136,11 @@
               <li><img src="/images/staticimg/Company.svg" class="menuIconImg" /><a
                 href="/admin/profile/company/online"
                 class="pages_link"
-              >онлайн оплата</a></li>
+              >Oнлайн оплата</a></li>
+                         {{!-- <li><img src="/images/staticimg/Company.svg" class="menuIconImg" /><a
+                href="/admin/profile/company/pays"
+                class="pages_link"
+              >Платежи</a></li> --}}
                           <li><img src="/images/staticimg/Handshake1.png" class="menuIconImg" /><a
                 href="/admin/profile/meeting/page"
                 class="pages_link"
@@ -233,7 +237,7 @@
       pages_link[2].classList.add("activeLink") } else
       if(location.href.includes("company/page")){
         pages_link[3].classList.add("activeLink") }else
-      if(location.href.includes("company/online")){
+      if(location.href.includes("company/pays")){
         pages_link[4].classList.add("activeLink")
       }else
       if(location.href.includes("meeting/page")){

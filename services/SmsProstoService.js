@@ -3,9 +3,7 @@ import axios from "axios";
 class SmsProstoService{
 
     sendMessage = async (recipient,messgae,sender = 'Sobytiya') => {
-      console.log(recipient,"recipient");
-      console.log(messgae,"messgae");
-      console.log(sender,"sender")
+
       console.log(process.env.PR_SMS_LOG,"process.env.PR_SMS_LOG")
       console.log(process.env.PR_SMS_PASS,"process.env.PR_SMS_PASS");
         return axios.get(`http://api.sms-prosto.ru/?method=push_msg&format=json&email=${process.env.PR_SMS_LOG}&password=${process.env.PR_SMS_PASS}&text=${messgae}&phone=${recipient}&sender_name=${sender}`)

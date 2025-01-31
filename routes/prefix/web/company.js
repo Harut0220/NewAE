@@ -36,6 +36,8 @@ companyAdminRouter.get("/online",companyController.onlinePage);
 
 companyAdminRouter.get("/page",companyController.index);
 
+companyAdminRouter.get("/pays/:id",companyController.pays);
+
 
 
 export default companyAdminRouter

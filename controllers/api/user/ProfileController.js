@@ -70,17 +70,18 @@ class ProfileController {
 
     let u = await User.findById(user.id)
       .populate("roles")
-      .populate({ path: "company", select: "_id services companyNmae" });
+      .populate({ path: "company", select: "_id services companyName" });
     if (u) {
+      u.unread_notifications = await this.UserService.getCountNotif(user.id)
+
       return res.status(200).send({ success: true, data: u });
     } else {
       return res
         .status(403)
         .send({ success: false, message: "User not found" });
     }
-    // const user1 = await this.UserService.findAndLean(user.id);
+    const user1 = await this.UserService.findAndLean(user.id);
 
-    // user1.unread_notifications = await this.UserService.getCountNotif(user._id)
   };
 
   update = async (req, res) => {
@@ -119,17 +120,13 @@ class ProfileController {
     const companiesDb = await companyModel.findOne({ owner: user1.id });
     const meetingsDb = await meetingModel.find({ user: user1.id });
 
-    
     setTimeout(async () => {
-      console.log("companiesDb set", companiesDb);
-      console.log("eventsDb.length set", eventsDb.length);
-      console.log("meetingsDb.length set", meetingsDb.length);
+
 
       if (eventsDb.length) {
         for (let i = 0; i < eventsDb.length; i++) {
-          
           const event = await Event.findById(eventsDb[i]._id);
-          
+
           if (!event) {
             throw new Error("Event not found");
           }
@@ -253,7 +250,6 @@ class ProfileController {
           await meeting.remove();
           console.log("Meetings and all related data deleted successfully");
         }
-
       }
       ///////////////////////////////////////////////////////////////////////////////
       //meeting deleteMany

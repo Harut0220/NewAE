@@ -241,7 +241,7 @@ class EventService {
       type: "Новая события",
       message: `Ваше событие ${d.name} находится на модерации`,
       categoryIcon: category.avatar,
-      event: event._id,
+      event: event._id.toString(),
       link: evLink,
     });
 
@@ -715,7 +715,6 @@ class EventService {
         // },
       ])
       .lean();
-    console.log("notif change situation", events);
 
     const nowDate = new Date();
     const nowMonth = nowDate.getMonth();

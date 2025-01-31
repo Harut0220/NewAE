@@ -66,7 +66,7 @@ class LikeController {
         )
           .populate({ path: "owner", select: "_id notifEvent" })
           .populate("category");
-          const evLink = `alleven://eventDetail/${event_id}`;
+          const evLink = `alleven://eventDetail/${id}`;
           const dataNotif = {
             status: 2,
             date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
@@ -74,6 +74,7 @@ class LikeController {
             type: "like",
             message: `Пользователь ${user.name} поставил лайк событию ${event.name}.`,
             event: event._id,
+            categoryIcon: event.category.avatar,
             link: evLink,
           };
           const nt = new Notification(dataNotif);
@@ -92,11 +93,11 @@ class LikeController {
             })
           );
         }
-        return res.json({ status: "success", message: "liked" });
+        return res.json({ status: "success", message: "liked",likes:event.likes });
       } else {
         await EventLike.findByIdAndDelete(neLike._id);
-        await Event.findByIdAndUpdate(id, { $pull: { likes: neLike._id } });
-        return res.json({ status: "success", message: "deleted" });
+        const event=await Event.findByIdAndUpdate(id, { $pull: { likes: neLike._id } },  { new: true });
+        return res.json({ status: "success", message: "deleted",likes:event.likes });
       }
     } else {
       return res.json({ status: "ERROR", message: "Event id is required" });

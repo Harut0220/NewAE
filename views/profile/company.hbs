@@ -79,11 +79,11 @@
                           <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>
                               <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{id}}">
                           </td>
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>{{getNestedValue category "name"}}</td>
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>{{name}}</td>
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>{{#getServicesArrays services "type"}}{{type}}, {{/getServicesArrays}}</td>
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>{{getNestedValue owner "name" }} {{getNestedValue owner "surname" }} </td>
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{getNestedValue category "name"}}</td>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{name}}</td>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{#getServicesArrays services "type"}}{{type}}, {{/getServicesArrays}}</td>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{getNestedValue owner "name" }} {{getNestedValue owner "surname" }} </td>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>
                            
                             {{#if (eq status 0)}}Hа модерации
                             {{else if (eq status 1)}}Одобрено
@@ -93,7 +93,7 @@
                             </td>
                           {{!-- <td class="td">{{lng situation "ru"}}</td> --}}
                           {{!-- <td class="td">{{startHour}}-{{endHour}}</td> --}}
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>{{address}}</td>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{address}}</td>
                           <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
                           <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}} style="text-align:center;">
                             {{#if (notEq status 3) }}

@@ -79,8 +79,8 @@
                               {{!-- <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{id}}"> --}}
                           {{!-- </td> --}}
                           {{!-- <td class="td">{{purpose}}</td> --}}
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>{{purpose}} {{owner }} {{address}}</td>
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 0)}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{purpose}} {{owner }} {{address}}</td>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 0)}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>
                             {{#if (eq situation "passed")}}Завершено
                             {{else if (eq status 0)}}Hа модерации
                             {{else if (eq status 1)}}Одобрено

@@ -65,7 +65,7 @@ meetingRouter.get("/allMeetings", meetingController.allMeeting); //kilometer suc
 meetingRouter.get("/meetings", meetingController.meetings); //kilometer success
 
 meetingRouter.post(
-  "/participantSpot",
+  "/add/participantSpot",
   newAuthJWT,
   meetingController.participantSpot
 );
@@ -101,4 +101,11 @@ meetingRouter.post(
   meetingController.impressionImagesStore
 );
 
+meetingRouter.get(
+  "/my/meeting/impressions",
+  newAuthJWT,
+  meetingController.myMeetingImpressions
+);
+
+meetingRouter.get("/my/impressions",newAuthJWT, meetingController.myImpressions);
 export default meetingRouter;

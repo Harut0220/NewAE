@@ -1,4 +1,4 @@
-import moment from "moment";
+import moment from "moment-timezone";
 import companyModel from "../../../models/company/companyModel.js";
 import servicesRegistrations from "../../../models/services/servicesRegistrations.js";
 import mongoose from "mongoose";
@@ -14,9 +14,52 @@ const { ObjectId } = mongoose.Types;
 const servicesController = {
   freeTimes: async (req, res) => {
     const { id, date } = req.query;
+
     const serviceDb = await CompanyServiceModel.findById(id);
 
     const companyDb = await companyModel.findById(serviceDb.companyId);
+
+
+    const daysFunc = (daysDb) => {
+      if (daysDb === "Пн․- Пят․") {
+        return ["понедельник", "вторник", "среда", "четверг", "пятница"];
+      } else if (daysDb === "Пн․- Сб.") {
+        return [
+          "понедельник",
+          "вторник",
+          "среда",
+          "четверг",
+          "пятница",
+          "суббота",
+        ];
+      } else if (daysDb === "Суб․- Вс․") {
+        return ["суббота", "воскресенье"];
+      } else if (daysDb === "Вт․- Вс․") {
+        return [
+          "вторник",
+          "среда",
+          "четверг",
+          "пятница",
+          "суббота",
+          "воскресенье",
+        ];
+      } else if (daysDb === "Пн․- Чт․") {
+        return ["понедельник", "вторник", "среда", "четверг"];
+      }
+    };
+
+    const dayName = moment.tz(date, "YYYY-MM-DD", process.env.TZ).locale("ru").format("dddd");
+    
+
+    const workingDays = daysFunc(companyDb.days);
+    
+   const ifTodayWorking= workingDays.includes(dayName);
+    
+   if(!ifTodayWorking){
+      return res.status(200).send({ message: "выходной день",data:[] });
+   }
+
+
 
     const startTime = moment.tz(
       `${date} ${companyDb.startHour}`,
@@ -36,6 +79,7 @@ const servicesController = {
     while (currentTime <= endTime) {
       times.push(currentTime.format("YYYY-MM-DD HH:mm"));
       currentTime.add(1, "hour");
+      
       if (currentTime.format("HH:mm") === endTime.format("HH:mm")) {
         break;
       }
@@ -64,23 +108,26 @@ const servicesController = {
 
     for (let i = 0; i < times.length; i++) {
       const datTimes = `${date}${times[i].slice(10, 16)}`;
-
+      
       const registerDb = await servicesRegistrations.findOne({
         serviceId: id,
         date: datTimes,
       });
+      
       //      date: { $gt: afterDate } // $gt = "greater than"
-
-  
 
       const sliceDate = times[i].slice(8, 10);
       const sliceDateReq = date.slice(8, 10);
       if (!registerDb && sliceDate === sliceDateReq) {
+        
         freeTimes.push(times[i]);
+        
       } else if (!registerDb && !(sliceDate === sliceDateReq)) {
+
         const dateTimeSliceDay = `${date} ${times[i].slice(11, 16)}`;
 
         arr.push(dateTimeSliceDay);
+        
       }
     }
     for (let j = arr.length - 1; j >= 0; j--) {
@@ -93,9 +140,14 @@ const servicesController = {
     // });
     //,isNight
     const dateNow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
-    const availableTimes = freeTimes.filter((time) =>
-      moment(time, "YYYY-MM-DD HH:mm").isAfter(dateNow)
-    );
+  
+  let availableTimes = freeTimes;
+    if(dateNow===date){ 
+       availableTimes = freeTimes.filter((time) =>
+        moment.tz(time, "YYYY-MM-DD HH:mm",process.env.TZ).isAfter(dateNow)
+      );
+    }
+    
 
 
     res.status(200).send({ success: true, data: availableTimes });
@@ -138,10 +190,10 @@ const servicesController = {
       const authHeader = req.headers.authorization;
       const { companyId } = req.params;
       const { day } = req.query;
+      
       if (!companyId && !day) {
         res.status(404).send({ message: "companyId & day not found" });
       }
-    
 
       const token = authHeader.split(" ")[1];
       const user = jwt.decode(token);
@@ -162,14 +214,13 @@ const servicesController = {
         })
         .populate("serviceId")
         .exec();
-   
 
       const formattedDate = moment.tz(process.env.TZ).format("YYYY-MM-DD");
 
       /////////////////////////////////////////////////////////
       function checkDateStatus(givenDateString) {
         const givenDate = new Date(givenDateString);
-
+        
         if (isNaN(givenDate.getTime())) {
           throw new Error("Invalid date format");
         }
@@ -194,6 +245,7 @@ const servicesController = {
           // const dateToCheck = '2024-08-13';
           // const dateToCheck = '2024-08-12';
           try {
+            
             const status = checkDateStatus(dbResult[i].date);
             if (status === "today") {
               resToday.push(dbResult[i]);
@@ -273,42 +325,55 @@ const servicesController = {
   editeRegistr: async (req, res) => {
     try {
       const { id, date, text } = req.body;
-
+      const daySlice = date.slice(8, 10);
+      const monthSlice = date.slice(5, 7);
+      const dateSlice = `${daySlice}.${monthSlice}`;
       if (date && text && id) {
-        const service = await servicesRegistrations.findById(id).populate("serviceId");
+        const service = await servicesRegistrations
+          .findById(id)
+          .populate("serviceId")
+          .populate("user");
         if (text) {
           service.dealDate = date;
+          service.dateSlice=dateSlice;
           service.messages.unshift(text);
           await service.save();
         } else {
+          service.dateSlice=dateSlice;
+
           service.dealDate = date;
           await service.save();
         }
 
         const evLink = `alleven://companyDetail/${service._id}`;
-       
+
         const dataNotif = {
           status: 2,
           date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-          user: service.user.toString(),
+          user: service.user._id.toString(),
           type: "Предлагают перенести",
           message: `Услугу ${service.serviceId.type} на которую вы записались предлагают перенести на ${date}`,
           service: service.serviceId._id,
+          categoryIcon: service.serviceId.images[0],
           link: evLink,
         };
         const nt = new Notification(dataNotif);
         await nt.save();
-        notifEvent.emit(
-          "send",
-          service.user.toString(),
-          JSON.stringify({
-            type: "Предлагают перенести",
-            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-            message: `Услугу ${service.serviceId.type} на которую вы записались предлагают перенести на ${date}`,
-            service: service._id,
-            link: evLink,
-          })
-        );
+        if (service.user.notifCompany) {
+          notifEvent.emit(
+            "send",
+            service.user._id.toString(),
+            JSON.stringify({
+              type: "Предлагают перенести",
+              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+              message: `Услугу ${service.serviceId.type} на которую вы записались предлагают перенести на ${date}`,
+              service: service._id,
+              categoryIcon: service.serviceId.images[0],
+              link: evLink,
+            })
+          );
+        }
+
         const updatedRegister = await servicesRegistrations
           .findById(id)
           .populate({
@@ -345,7 +410,6 @@ const servicesController = {
 
       const { id } = req.body;
 
-
       const service = await servicesRegistrations
         .findOneAndUpdate(
           { _id: id }, // Filter criteria
@@ -372,45 +436,51 @@ const servicesController = {
       const confirmedRegister = await servicesRegistrations
         .findOneAndUpdate(
           { _id: id },
-          { $set: { dateSlice, date: service.dealDate } }, 
+          { $set: { dateSlice, date: service.dealDate } },
           { new: true }
         )
         .select("-dealDate")
         .populate({
           path: "user",
-          select: "_id name surname avatar phone_number",
+          select: "_id name surname avatar phone_number notifCompany",
         })
-        .populate({ path: "serviceId", select: "_id type" })
+        .populate({ path: "serviceId", select: "_id type images cost companyId description serviceRegister" })
         .exec();
-
+      const time = confirmedRegister.date.split(" ")[1];
       const evLink = `alleven://companyDetail/${confirmedRegister.serviceId._id}`;
       if (user.id === service.user._id.toString()) {
         const companyDb = await companyModel
           .findById(confirmedRegister.serviceId.companyId.toString())
-          .select("owner")
+          .populate("owner")
           .exec();
         const dataNotif = {
           status: 2,
           date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-          user: companyDb.owner.toString(),
+          user: companyDb.owner._id.toString(),
           type: "Регистрации услугу",
           message: `Пользователь пoтвердил ваше предложение на услугу ${confirmedRegister.serviceId.type} время ${confirmedRegister.date}`,
           service: confirmedRegister.serviceId._id,
+          cotegoryIcon: confirmedRegister.serviceId.images[0],
           link: evLink,
         };
         const nt = new Notification(dataNotif);
         await nt.save();
-        notifEvent.emit(
-          "send",
-          companyDb.owner.toString(),
-          JSON.stringify({
-            type: "Регистрации услугу",
-            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-            message: `Пользователь пoтвердил ваше предложение на услугу ${confirmedRegister.serviceId.type} время ${confirmedRegister.date}`,
-            service: confirmedRegister.serviceId._id,
-            link: evLink,
-          })
-        );
+        if (companyDb.owner.notifCompany) {
+          notifEvent.emit(
+            "send",
+            companyDb.owner._id.toString(),
+            JSON.stringify({
+              type: "Регистрации услугу",
+              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+              message: `Пользователь пoтвердил ваше предложение на услугу ${confirmedRegister.serviceId.type} время ${confirmedRegister.date}`,
+              service: confirmedRegister.serviceId._id,
+              cotegoryIcon: confirmedRegister.serviceId.images[0],
+              link: evLink,
+            })
+          );
+        }
+
+
       } else {
         const dataNotif = {
           status: 2,
@@ -419,21 +489,27 @@ const servicesController = {
           type: "Регистрации услугу",
           message: `Организатор пoтвердил ваша запис на услугу ${confirmedRegister.serviceId.type} время ${confirmedRegister.date}`,
           service: confirmedRegister.serviceId._id,
+          cotegoryIcon: confirmedRegister.serviceId.images[0],
           link: evLink,
         };
         const nt = new Notification(dataNotif);
         await nt.save();
-        notifEvent.emit(
-          "send",
-          confirmedRegister.user._id.toString(),
-          JSON.stringify({
-            type: "Регистрации услугу",
-            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-            message: `Организатор пoтвердил ваша запис на услугу ${confirmedRegister.serviceId.type} время ${confirmedRegister.date}`,
-            service: confirmedRegister.serviceId._id,
-            link: evLink,
-          })
-        );
+        if (confirmedRegister.user.notifCompany) {
+          notifEvent.emit(
+            "send",
+            confirmedRegister.user._id.toString(),
+            JSON.stringify({
+              type: "Регистрации услугу",
+              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+              message: `Организатор пoтвердил ваша запис на услугу ${confirmedRegister.serviceId.type} время ${confirmedRegister.date}`,
+              service: confirmedRegister.serviceId._id,
+              cotegoryIcon: confirmedRegister.serviceId.images[0],
+              link: evLink,
+            })
+          );
+        }
+
+
       }
 
       const dat = confirmedRegister.date;
@@ -443,85 +519,146 @@ const servicesController = {
 
       const notificationTime = registerTime.clone().subtract(1, "hour");
 
-
       const currentTime = moment.tz(process.env.TZ).format();
-
       async function sendMessage(serviceRegisterDbId, type) {
 
-        const registerDb = await servicesRegistrations
-          .findById(serviceRegisterDbId)
-          .populate("serviceId")
-          .populate("user")
-          .exec();
+        try {
+          const registerDb = await servicesRegistrations
+            .findById(serviceRegisterDbId)
+            .populate("serviceId")
+            .populate("user")
+            .exec();
 
-        if (registerDb) {
-          const evLink = `alleven://companyDetail/${registerDb.serviceId._id}`;
-
-          if (type) {
-            console.log("Notification Time hour before the event");
-
-            const dataNotif = {
-              status: 2,
-              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-              user: registerDb.user._id.toString(),
-              type: "Регистрация на услугу",
-              message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}`,
-              service: registerDb.serviceId._id,
-              link: evLink,
-            };
-            const nt = new Notification(dataNotif);
-            await nt.save();
-            notifEvent.emit(
-              "send",
-              registerDb.user._id.toString(),
-              JSON.stringify({
-                type: "Регистрация на услугу",
-                date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-                message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}`,
-                link: evLink,
-              })
-            );
-          } else {
-            console.log(
-              "Notification Time 5 minutes before the event (schedule)"
-            );
+          if (registerDb) {
+            const evLink = `alleven://companyDetail/${registerDb.serviceId._id}`;
+            const message = `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${time}`;
 
             const dataNotif = {
               status: 2,
               date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
               user: registerDb.user._id.toString(),
               type: "Регистрация на услугу",
-              message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}.`,
+              message: message,
               service: registerDb.serviceId._id,
+              categoryIcon: registerDb.serviceId.images[0],
               link: evLink,
             };
             const nt = new Notification(dataNotif);
             await nt.save();
-            notifEvent.emit(
-              "send",
-              registerDb.user._id.toString(),
-              JSON.stringify({
-                type: "Регистрация на услугу",
-                date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-                message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}.`,
-                link: evLink,
-              })
-            );
+            if (registerDb.user.notifCompany) {
+              notifEvent.emit(
+                "send",
+                registerDb.user._id.toString(),
+                JSON.stringify({
+                  type: "Регистрация на услугу",
+                  date_time: moment
+                    .tz(process.env.TZ)
+                    .format("YYYY-MM-DD HH:mm"),
+                  message: message,
+                  categoryIcon: registerDb.serviceId.images[0],
+                  link: evLink,
+                })
+              );
+            }
+
           }
+        } catch (error) {
+          console.error("Error in sendMessage:", error);
         }
       }
+      // async function sendMessage(serviceRegisterDbId, type) {
+
+      //   const registerDb = await servicesRegistrations
+      //     .findById(serviceRegisterDbId)
+      //     .populate("serviceId")
+      //     .populate("user")
+      //     .exec();
+
+      //   if (registerDb) {
+      //     const evLink = `alleven://companyDetail/${registerDb.serviceId._id}`;
+
+      //     if (type) {
+
+      //       const dataNotif = {
+      //         status: 2,
+      //         date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+      //         user: registerDb.user._id.toString(),
+      //         type: "Регистрация на услугу",
+      //         message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}`,
+      //         service: registerDb.serviceId._id,
+      //         link: evLink,
+      //       };
+      //       const nt = new Notification(dataNotif);
+      //       await nt.save();
+      //       notifEvent.emit(
+      //         "send",
+      //         registerDb.user._id.toString(),
+      //         JSON.stringify({
+      //           type: "Регистрация на услугу",
+      //           date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+      //           message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}`,
+      //           link: evLink,
+      //         })
+      //       );
+
+      //     } else {
 
 
-      schedule.scheduleJob(notificationTime.toDate(), () => {
-        console.log("Notification Time hour before the event (schedule)");
+      //       const dataNotif = {
+      //         status: 2,
+      //         date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+      //         user: registerDb.user._id.toString(),
+      //         type: "Регистрация на услугу",
+      //         message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}.`,
+      //         service: registerDb.serviceId._id,
+      //         link: evLink,
+      //       };
+      //       const nt = new Notification(dataNotif);
+      //       await nt.save();
+      //       notifEvent.emit(
+      //         "send",
+      //         registerDb.user._id.toString(),
+      //         JSON.stringify({
+      //           type: "Регистрация на услугу",
+      //           date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+      //           message: `Вы записались на услугу ${registerDb.serviceId.type} сегодня в ${registerDb.date}.`,
+      //           link: evLink,
+      //         })
+      //       );
 
-        sendMessage(Db._id.toString(), "hour");
-      });
-      schedule.scheduleJob(registerTimeFive.toDate(), () => {
-        console.log("Notification Time 5 minutes before the event (schedule)");
+      //     }
+      //   }
+      // }
 
-        sendMessage(Db._id.toString());
-      });
+      schedule.scheduleJob(
+        `notification_${confirmedRegister._id}_hour`,
+        notificationTime.toDate(),
+        () => {
+          console.log("Notification Time hour before the event (schedule)");
+          try {
+            sendMessage(confirmedRegister._id.toString(), "hour");
+          } catch (error) {
+            console.error("Error sending notification (1 hour):", error);
+          }
+        }
+      );
+
+      schedule.scheduleJob(
+        `notification_${confirmedRegister._id}_five`,
+        registerTimeFive.toDate(),
+        () => {
+          console.log(
+            "Notification Time 5 minutes before the event (schedule)"
+          );
+          try {
+            sendMessage(confirmedRegister._id.toString());
+          } catch (error) {
+            console.error("Error sending notification (5 minutes):", error);
+          }
+        }
+      );
+
+      
 
       res
         .status(200)
@@ -539,17 +676,17 @@ const servicesController = {
       const user = jwt.decode(token);
       const daySlice = date.slice(8, 10);
       const monthSlice = date.slice(5, 7);
-      const dateSlice = `${monthSlice}.${daySlice}`;
+      const dateSlice = `${daySlice}.${monthSlice}`;
       const companyDb = await companyModel
         .findById(service.companyId.toString())
-        .populate("category");
+        .populate("category")
+        .populate("owner");
 
       const decideDay = async (daysDb, today) => {
         moment.locale("ru");
         const specificDate = moment.tz(today, process.env.TZ);
         const dayName = specificDate.format("dddd");
         const daysFunc = (daysDb) => {
-
           if (daysDb === "Пн․- Пят․") {
             return ["понедельник", "вторник", "среда", "четверг", "пятница"];
           } else if (daysDb === "Пн․- Сб.") {
@@ -614,8 +751,8 @@ const servicesController = {
         const dataNotif = {
           status: 2,
           date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-          user: companyDb.owner.toString(),
-          type: "Регистрации услугу",
+          user: companyDb.owner._id.toString(),
+          type: "Записались на услуги",
           message: `Пользователь ${userDb.name} ${userDb.surname} записался на услугу на ${day} ${monthName} ${time}.`,
           categoryIcon: companyDb.category.avatar, //sarqel
           service: serviceId,
@@ -623,17 +760,19 @@ const servicesController = {
         };
         const nt = new Notification(dataNotif);
         await nt.save();
-        notifEvent.emit(
-          "send",
-          companyDb.owner.toString(),
-          JSON.stringify({
-            type: "Регистрации услугу",
-            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-            message: `Пользователь ${userDb.name} ${userDb.surname} записался на услугу на ${day} ${monthName} ${time}.`,
-            categoryIcon: companyDb.category.avatar, //sarqel
-            link: evLink,
-          })
-        );
+        if (companyDb.owner.notifCompany) {
+          notifEvent.emit(
+            "send",
+            companyDb.owner._id.toString(),
+            JSON.stringify({
+              type: "Записались на услуги",
+              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+              message: `Пользователь ${userDb.name} ${userDb.surname} записался на услугу на ${day} ${monthName} ${time}.`,
+              categoryIcon: companyDb.category.avatar, //sarqel
+              link: evLink,
+            })
+          );
+        }
 
         res.status(200).send({ message: "запись отправлено." });
       }

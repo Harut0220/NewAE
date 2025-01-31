@@ -80,8 +80,8 @@ function iconActive(status = 1) {
 socket.onmessage = function (event) {
   console.log(window.location.toString().split('=')[1]);
   let data = parseData(event.data);
-  console.log(event.data,"event.data");
-  console.log(data, "data");
+  // console.log(event.data,"event.data");
+  // console.log(data, "data");
   
   appendDiv("notifModal", generateNotifDiv(data));
   // console.log(data);

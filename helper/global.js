@@ -193,7 +193,7 @@ const h = {
 getValueOwnerCompany:(obj, key)=> {
   return obj[key];
 },
-    getValue:(obj, key)=> {
+getValue:(obj, key)=> {
   return obj[key];
 },
 getValueUrl:(obj, key)=> {

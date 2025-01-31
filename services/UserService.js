@@ -13,7 +13,6 @@ import EventCategoryService from "./EventCategoryService.js";
 // const allUsers = async function (){
 //     let users = await User.find({}).populate({
 //         path: 'Role'}).exec();
-//     console.log(users)
 //     return users;
 // }
 
@@ -152,19 +151,23 @@ class UserService {
   };
 
   blockOrUnblock = async (id) => {
-    let user = await User.findById(id);
-    await user.updateOne({ block: !user.block });
-    await user.save();
-    console.log("block or unblock");
+    try {
+      let user = await User.findById(id);
+      await user.updateOne({ block: !user.block });
+      await user.save();
+      console.log("block or unblock");
 
-    // await transporter.sendMail({
-    //   from: process.env.MAIL_USERNAME,
-    //   to: user.email,
-    //   subject: "Hello",
-    //   template: "confirm-user",
-    // });
+      // await transporter.sendMail({
+      //   from: process.env.MAIL_USERNAME,
+      //   to: user.email,
+      //   subject: "Hello",
+      //   template: "confirm-user",
+      // });
 
-    return user;
+      return user;
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   destroy = async (id) => {
@@ -178,7 +181,6 @@ class UserService {
     password,
     role = "USER"
   ) => {
-
     // let password="12345678"
     const r = await Role.findOne({ name: role });
     let salt = bcrypt.genSaltSync(8);
@@ -215,7 +217,6 @@ class UserService {
     password,
     role = "USER"
   ) => {
-
     const r = await Role.findOne({ name: role });
     let salt = bcrypt.genSaltSync(8);
     password = bcrypt.hashSync(password, salt);
@@ -245,7 +246,6 @@ class UserService {
   };
 
   find = async (id) => {
-
     const user = await User.findById(id)
       .select(["-password", "-block", "-fcm_token"])
       .populate([
@@ -298,7 +298,6 @@ class UserService {
   };
 
   findAndLeanCompany = async (id) => {
-
     return await User.findById(id)
       .select(["-password", "-block", "-fcm_token"])
       .populate([
@@ -410,7 +409,6 @@ class UserService {
 
   destroyFromCollection = async (user_id, col_id, col_name) => {
     let user = await this.find(user_id);
-    
 
     if (user && user[col_name]) {
       user[col_name].remove(col_id);
@@ -530,6 +528,8 @@ class UserService {
 
   getCountNotif = async (id) => {
     const usr = await this.find(id);
+    console.log(usr, "usr count notif");
+
     console.log(usr.name, "usr count notif");
 
     const usrNotifCount = await Notification.find({
@@ -547,7 +547,6 @@ class UserService {
   ////////////////////////////////////////////////////////////////
 
   // sendPushNotif = async (id, data) => {
-  
 
   //   const notifConut = await this.getCountNotif(id);
   //   const d = JSON.parse(data);
@@ -575,7 +574,6 @@ class UserService {
   //       },
   //       // condition: condition,
   //     };
-  //     console.log(message,"message push notif sended");
 
   //     admin
   //       .messaging()
@@ -612,8 +610,8 @@ class UserService {
     const user = await User.findById(id);
     const token = user.fcm_token;
     if (token.length) {
-      for (let i = 0; i < token.length; i++) {
-        console.log("Sending notification to:", token[i]);
+      for (let i = 0; i < tokens.length; i++) {
+        console.log("Sending notification to:", tokens[i]);
         // const condition = "'stock-GOOG' in topics || 'industry-tech' in topics";
 
         const message = {
@@ -621,7 +619,7 @@ class UserService {
             title: d.type,
             body: d.message,
           },
-          token: token[i],
+          token: tokens[i],
           // condition: condition,
           data: {
             link: d.link ? d.link : "",

@@ -24,8 +24,553 @@ import companyCommentLike from "../../../models/company/companyCommentLike.js";
 import companyCommentAnswer from "../../../models/company/companyCommentAnswer.js";
 import companyHotDeals from "../../../models/company/companyHotDeals.js";
 import companyPhones from "../../../models/company/companyPhones.js";
+import ImpressionsCompany from "../../../models/ImpressionsCompany.js";
 
 const companyController = {
+  pays: async (req, res) => {
+    try {
+      //   const event = await companyModel
+      //   .findById(req.params.id)
+      //   .populate("images")
+      //   .populate("services")
+      //   .populate("phoneNumbers")
+      //   .populate("category")
+      //   .populate({ path: "owner", select: "-password" })
+      //   .populate("likes")
+      //   .populate("comments");
+      // // const user=await User.findById(event.owner)
+      // const comments = await companyComment
+      //   .find({ companyId: event._id, user: event.owner })
+      //   .populate({ path: "user", select: "-password" });
+
+      // res.render("profile/company-show", {
+      //   layout: "profile",
+      //   title: "Company Show",
+      //   user: req.user,
+      //   event,
+      //   eventCat: event.category,
+      //   // eventCats,
+      //   services: event.services,
+      //   images: event.images,
+      //   phone_numbers: event.phoneNumbers,
+      //   userOwner: event.owner,
+      //   comments: comments,
+      // });
+      const { id } = req.params;
+      const enents = await companyModel.findById(id);
+      res.render("profile/company-pays", {
+        layout: "profile",
+        title: "Company Pays",
+        user: req.user,
+        enents,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({ message: "Server error" });
+    }
+  },
+  myImpressions: async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+
+    const likes = await companyLikes.find({ user: user.id }).populate({
+      path: "companyId",
+      select: "_id companyName address images",
+      populate: { path: "images" },
+    });
+    const likeResult = [];
+    const favoritesResult = [];
+    const impressionResult = [];
+    likes.map(async (like) => {
+      const obj = {};
+      const rating = await companyRating.findOne({
+        user: user.id,
+        companyId: like.companyId._id,
+      });
+      // const comments=await companyComment.find({user:user.id,companyId:like.companyId._id})
+      obj.companyName = like.companyId.companyName;
+      obj.address = like.companyId.address;
+      if (rating) {
+        obj.rating = rating.rating;
+      } else {
+        obj.rating = null;
+      }
+      // if(comments.length){
+      //   obj.comments=comments
+      // }else{
+      //   obj.comments=null
+      // }
+      obj.url = like.companyId.images[0].name;
+      likeResult.push(obj);
+    });
+
+    const favorites = await companyFavorit.find({ user: user.id }).populate({
+      path: "companyId",
+      select: "_id companyName address images",
+      populate: { path: "images" },
+    });
+
+    favorites.map(async (favorite) => {
+      const obj = {};
+      const rating = await companyRating.findOne({
+        user: user.id,
+        companyId: favorite.companyId._id,
+      });
+      obj.companyName = favorite.companyId.companyName;
+      obj.address = favorite.companyId.address;
+      if (rating) {
+        obj.rating = rating.rating;
+      } else {
+        obj.rating = null;
+      }
+      obj.url = favorite.companyId.images[0].name;
+      favoritesResult.push(obj);
+    });
+
+    const impressions = await companyImpressionImages
+      .find({ user: user.id })
+      .populate({
+        path: "companyId",
+        select: "_id companyName address images",
+        populate: { path: "images" },
+      });
+
+    impressions.map(async (impression) => {
+      const obj = {};
+      const rating = await companyRating.findOne({
+        user: user.id,
+        companyId: impression.companyId._id,
+      });
+      const comments = await companyComment.find({
+        user: user.id,
+        companyId: impression.companyId._id,
+      });
+      obj.companyName = impression.companyId.companyName;
+      obj.address = impression.companyId.address;
+      if (rating) {
+        obj.rating = rating.rating;
+      } else {
+        obj.rating = null;
+      }
+      if (comments.length) {
+        obj.comments = comments;
+      } else {
+        obj.comments = null;
+      }
+      obj.url = impression.companyId.images[0].name;
+      obj.images = impression.path;
+      impressionResult.push(obj);
+    });
+
+    res.status(200).send({
+      message: "success",
+      likes: likeResult,
+      favorites: favoritesResult,
+      impressions: impressionResult,
+    });
+  },
+  myCompanyImpressions: async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+    const company = await Company.findOne({ owner: user.id }).populate(
+      "images"
+    );
+    if(company){
+      const impressions = await ImpressionsCompany.find({ company: company._id });
+      res.status(200).send({ message: "success", impressions });
+    }else{
+      res.status(200).send({ message: "success", impressions: [] });
+    }
+
+  },
+  myparticipant: async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
+      const { latitude, longitude } = req.query;
+      const result = await companyService.myparticipant(
+        user.id,
+        latitude,
+        longitude
+      );
+      res.status(200).send(result);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({ message: "Server error" });
+    }
+  },
+  getHotDeals: async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      let result;
+      const { latitude, longitude } = req.query;
+      if (authHeader && latitude && longitude) {
+        const token = authHeader.split(" ")[1];
+        const user = jwt.decode(token);
+        result = await companyHotDeals
+          .find({ user: { $ne: user.id } })
+          .populate({
+            path: "companyId",
+            select:
+              "companyName ratingCalculated address images kilometr latitude longitude open startHour endHour category",
+            populate: {
+              path: "images category", // The field within `companyId` to populate
+            },
+            // populate: {
+            //   path: "category",
+            // }
+          });
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+          const earthRadius = 6371;
+
+          const latRad1 = (lat1 * Math.PI) / 180;
+          const lonRad1 = (lon1 * Math.PI) / 180;
+          const latRad2 = (lat2 * Math.PI) / 180;
+          const lonRad2 = (lon2 * Math.PI) / 180;
+
+          // Haversine formula
+          const dLat = latRad2 - latRad1;
+          const dLon = lonRad2 - lonRad1;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(latRad1) *
+              Math.cos(latRad2) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = earthRadius * c;
+
+          return distance;
+        }
+
+        result.forEach((company) => {
+          company.companyId.kilometr = calculateDistance(
+            latitude,
+            longitude,
+            company.latitude,
+            company.longitude
+          );
+        });
+        result.sort((a, b) => a.kilometr - b.kilometr);
+        for (let z = 0; z < result.length; z++) {
+          // const hours = moment.tz(process.env.TZ).format("HH:mm");
+          // const splitOpen = result[z].companyId.startHour.split(":");
+          // const splitClose = result[z].companyId.endHour.split(":");
+
+          // if (
+          //   Number(hours) >= Number(splitOpen[0]) &&
+          //   Number(hours) < Number(splitClose[0])
+          // ) {
+          //   result[z].open = true;
+          // }
+          const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+          function isCompanyOpen(startHour, closeHour, currentTime) {
+            const parseTime = (time) => {
+              const [hour, minute] = time.split(":").map(Number);
+              return { hour, minute };
+            };
+
+            const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+            const start = parseTime(startHour);
+            const close = parseTime(closeHour);
+            const current = parseTime(currentTime);
+
+            const startMinutes = toMinutes(start);
+            const closeMinutes =
+              toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+            const currentMinutes = toMinutes(current);
+
+            return (
+              currentMinutes >= startMinutes && currentMinutes < closeMinutes
+            );
+          }
+
+          const openBool = isCompanyOpen(
+            result[z].companyId.startHour,
+            result[z].companyId.endHour,
+            hours
+          );
+          result[z].open = openBool;
+        }
+      } else if (latitude && longitude && !authHeader) {
+        result = await companyHotDeals.find().populate({
+          path: "companyId",
+          select:
+            "companyName ratingCalculated address images kilometr latitude longitude open startHour endHour category",
+          populate: {
+            path: "images category", // The field within `companyId` to populate
+          },
+          // populate: {
+          //   path: "category",
+          // }
+        });
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+          const earthRadius = 6371;
+
+          const latRad1 = (lat1 * Math.PI) / 180;
+          const lonRad1 = (lon1 * Math.PI) / 180;
+          const latRad2 = (lat2 * Math.PI) / 180;
+          const lonRad2 = (lon2 * Math.PI) / 180;
+
+          // Haversine formula
+          const dLat = latRad2 - latRad1;
+          const dLon = lonRad2 - lonRad1;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(latRad1) *
+              Math.cos(latRad2) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = earthRadius * c;
+
+          return distance;
+        }
+
+        result.forEach((company) => {
+          company.companyId.kilometr = calculateDistance(
+            latitude,
+            longitude,
+            company.latitude,
+            company.longitude
+          );
+        });
+        result.sort((a, b) => a.kilometr - b.kilometr);
+        for (let z = 0; z < result.length; z++) {
+          // const hours = moment.tz(process.env.TZ).format("HH:mm");
+          // const splitOpen = result[z].companyId.startHour.split(":");
+          // const splitClose = result[z].companyId.endHour.split(":");
+
+          // if (
+          //   Number(hours) >= Number(splitOpen[0]) &&
+          //   Number(hours) < Number(splitClose[0])
+          // ) {
+          //   result[z].companyId.open = true;
+          // }
+          const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+          function isCompanyOpen(startHour, closeHour, currentTime) {
+            const parseTime = (time) => {
+              const [hour, minute] = time.split(":").map(Number);
+              return { hour, minute };
+            };
+
+            const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+            const start = parseTime(startHour);
+            const close = parseTime(closeHour);
+            const current = parseTime(currentTime);
+
+            const startMinutes = toMinutes(start);
+            const closeMinutes =
+              toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+            const currentMinutes = toMinutes(current);
+
+            return (
+              currentMinutes >= startMinutes && currentMinutes < closeMinutes
+            );
+          }
+
+          const openBool = isCompanyOpen(
+            result[z].companyId.startHour,
+            result[z].companyId.endHour,
+            hours
+          );
+          result[z].open = openBool;
+        }
+      } else if (authHeader && !latitude && !longitude) {
+        const token = authHeader.split(" ")[1];
+        const user = jwt.decode(token);
+        result = await companyHotDeals
+          .find({ user: { $ne: user.id } })
+          .populate({
+            path: "companyId",
+            select:
+              "companyName ratingCalculated address images kilometr latitude longitude open startHour endHour category",
+            populate: {
+              path: "images category", // The field within `companyId` to populate
+            },
+            // populate: {
+            //   path: "category",
+            // }
+          });
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+          const earthRadius = 6371;
+
+          const latRad1 = (lat1 * Math.PI) / 180;
+          const lonRad1 = (lon1 * Math.PI) / 180;
+          const latRad2 = (lat2 * Math.PI) / 180;
+          const lonRad2 = (lon2 * Math.PI) / 180;
+
+          // Haversine formula
+          const dLat = latRad2 - latRad1;
+          const dLon = lonRad2 - lonRad1;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(latRad1) *
+              Math.cos(latRad2) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = earthRadius * c;
+
+          return distance;
+        }
+        const myLatitude = 55.7558;
+        const myLongitude = 37.6173;
+        result.forEach((company) => {
+          company.companyId.kilometr = calculateDistance(
+            myLatitude,
+            myLongitude,
+            company.latitude,
+            company.longitude
+          );
+        });
+        result.sort((a, b) => a.kilometr - b.kilometr);
+        for (let z = 0; z < result.length; z++) {
+          // const hours = moment.tz(process.env.TZ).format("HH:mm");
+          // const splitOpen = result[z].companyId.startHour.split(":");
+          // const splitClose = result[z].companyId.endHour.split(":");
+
+          // if (
+          //   Number(hours) >= Number(splitOpen[0]) &&
+          //   Number(hours) < Number(splitClose[0])
+          // ) {
+          //   result[z].open = true;
+          // }
+          const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+          function isCompanyOpen(startHour, closeHour, currentTime) {
+            const parseTime = (time) => {
+              const [hour, minute] = time.split(":").map(Number);
+              return { hour, minute };
+            };
+
+            const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+            const start = parseTime(startHour);
+            const close = parseTime(closeHour);
+            const current = parseTime(currentTime);
+
+            const startMinutes = toMinutes(start);
+            const closeMinutes =
+              toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+            const currentMinutes = toMinutes(current);
+
+            return (
+              currentMinutes >= startMinutes && currentMinutes < closeMinutes
+            );
+          }
+
+          const openBool = isCompanyOpen(
+            result[z].companyId.startHour,
+            result[z].companyId.endHour,
+            hours
+          );
+          result[z].open = openBool;
+        }
+      } else {
+        result = await companyHotDeals.find().populate({
+          path: "companyId",
+          select:
+            "companyName ratingCalculated address images kilometr latitude longitude open startHour endHour category",
+          populate: {
+            path: "images category", // The field within `companyId` to populate
+          },
+          // populate: {
+          //   path: "category",
+          // }
+        });
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+          const earthRadius = 6371;
+
+          const latRad1 = (lat1 * Math.PI) / 180;
+          const lonRad1 = (lon1 * Math.PI) / 180;
+          const latRad2 = (lat2 * Math.PI) / 180;
+          const lonRad2 = (lon2 * Math.PI) / 180;
+
+          // Haversine formula
+          const dLat = latRad2 - latRad1;
+          const dLon = lonRad2 - lonRad1;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(latRad1) *
+              Math.cos(latRad2) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = earthRadius * c;
+
+          return distance;
+        }
+        const myLatitude = 55.7558;
+        const myLongitude = 37.6173;
+        result.forEach((company) => {
+          company.companyId.kilometr = calculateDistance(
+            myLatitude,
+            myLongitude,
+            company.latitude,
+            company.longitude
+          );
+        });
+        result.sort((a, b) => a.kilometr - b.kilometr);
+        for (let z = 0; z < result.length; z++) {
+          // const hours = moment.tz(process.env.TZ).format("HH:mm");
+          // const splitOpen = result[z].companyId.startHour.split(":");
+          // const splitClose = result[z].companyId.endHour.split(":");
+
+          // if (
+          //   Number(hours) >= Number(splitOpen[0]) &&
+          //   Number(hours) < Number(splitClose[0])
+          // ) {
+          //   result[z].open = true;
+          // }
+          const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+          function isCompanyOpen(startHour, closeHour, currentTime) {
+            const parseTime = (time) => {
+              const [hour, minute] = time.split(":").map(Number);
+              return { hour, minute };
+            };
+
+            const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+            const start = parseTime(startHour);
+            const close = parseTime(closeHour);
+            const current = parseTime(currentTime);
+
+            const startMinutes = toMinutes(start);
+            const closeMinutes =
+              toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+            const currentMinutes = toMinutes(current);
+
+            return (
+              currentMinutes >= startMinutes && currentMinutes < closeMinutes
+            );
+          }
+
+          const openBool = isCompanyOpen(
+            result[z].companyId.startHour,
+            result[z].companyId.endHour,
+            hours
+          );
+          result[z].open = openBool;
+        }
+      }
+
+      res.status(200).send({ message: "success", data: result });
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({ message: "Server error" });
+    }
+  },
   // dealsRegisters: async (req, res) => {
   //   const { id } = req.params;
   //   const result = await companyService.dealsRegisters(id);
@@ -61,13 +606,13 @@ const companyController = {
       const token = authHeader.split(" ")[1];
       const user = jwt.decode(token);
       const { companyId, description, cost, date } = req.body;
-     
 
       const result = await companyService.addHotDeals(
         companyId,
         description,
         cost,
-        date
+        date,
+        user.id
       );
       res.status(200).send(result);
       // }else{
@@ -80,8 +625,10 @@ const companyController = {
   },
   companyEdit: async (req, res) => {
     const data = req.body;
+
     const result = await companyService.companyEdit(data);
-    res.send(result);
+
+    res.status(200).send(result);
   },
   impressionImagesStore: async (req, res) => {
     const authHeader = req.headers.authorization;
@@ -97,6 +644,39 @@ const companyController = {
     const data = await companyImpressionImages
       .findById(result._id)
       .populate({ path: "user", select: "name surname avatar" });
+
+    const ifImpressions = await ImpressionsCompany.findOne({
+      company: id,
+      user: user.id,
+    });
+    const date = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+    const userDb = await User.findById(user.id);
+    const companyDb = await Company.findById(id).populate("images").populate("category");
+    if (ifImpressions) {
+      for (let i = 0; i < path.length; i++) {
+        await ImpressionsCompany.findByIdAndUpdate(ifImpressions._id, {
+          $push: { images: path[i] },
+          $set: { date },
+        });
+      }
+    } else {
+      const companyImpression = new ImpressionsCompany({
+        rating,
+        comments: [],
+        images: path,
+        name: userDb.name,
+        surname: userDb.surname,
+        avatar: userDb.avatar,
+        companyName: companyDb.companyName,
+        companyImage: companyDb.images[0].name,
+        companyCategory: companyDb.category.name,
+        company: companyDb._id,
+        user: user.id,
+        date,
+      });
+      await companyImpression.save();
+    }
+
     return res
       .status(200)
       .send({ updated: result.bool, success: true, data: result.result });
@@ -164,7 +744,6 @@ const companyController = {
       .populate("services")
       .populate("phoneNumbers");
 
-
     const services = await companyServiceDb.find({ companyId: event._id });
     let registr = 0;
     for (let i = 0; i < services.length; i++) {
@@ -180,8 +759,6 @@ const companyController = {
     if (event.status && event.status != 0 && event.status != 1) {
       template += "-rejected";
     }
-
-
 
     res.render(template, {
       layout: "profile",
@@ -256,7 +833,11 @@ const companyController = {
       const id = req.params.id;
       const result = await companyService.onlineResolve(id);
       let template = "profile/companyPay-single";
-      const dbCompany = await Company.findById(id)
+      const dbCompany = await Company.findByIdAndUpdate(
+        id,
+        { onlinePay: 2 },
+        { new: true }
+      )
         .populate("images")
         .populate("services")
         .populate("phoneNumbers")
@@ -273,6 +854,7 @@ const companyController = {
         images: dbCompany.images,
         phone_numbers: dbCompany.phoneNumbers,
         eventCat,
+        onlinePay: dbCompany.onlinePay,
       });
     } catch (error) {
       console.error(error);
@@ -298,10 +880,9 @@ const companyController = {
       let eventCat = await companyCategory.findById(event.category);
       const user = await User.findById(event.owner);
       const favorite = await companyFavorit.find({ companyId: req.params.id });
-      if (event.status && event.status != 0 && event.status != 1) {
+      if (event.onlinePay == 3) {
         template += "-rejected";
       }
-
 
       res.render(template, {
         layout: "profile",
@@ -318,6 +899,7 @@ const companyController = {
         registr,
         statusMessage: event.rejectMessage,
         onlineReason: event.onlineReason,
+        onlinePay: event.onlinePay,
       });
     } catch (error) {
       console.error(error);
@@ -341,8 +923,6 @@ const companyController = {
   //     if (event.status && event.status != 0 && event.status != 1) {
   //       template += "-rejected";
   //     }
-
-
 
   //     res.render(template, {
   //       layout: "profile",
@@ -372,7 +952,10 @@ const companyController = {
       let events;
       if (name) {
         params.name = name;
-        events = await Company.find({ companyName: name })
+        events = await Company.find({
+          companyName: name,
+          onlinePay: { $ne: 0 },
+        })
           .populate({ path: "owner", select: "-password" })
           .populate("images")
           .populate("phoneNumbers")
@@ -384,7 +967,10 @@ const companyController = {
       if (category) {
         const eventCats = await companyCategory.findById(category);
         params.category = category;
-        events = await Company.find({ category: eventCats._id })
+        events = await Company.find({
+          category: eventCats._id,
+          onlinePay: { $ne: 0 },
+        })
           .populate({ path: "owner", select: "-password" })
           .populate("images")
           .populate("phoneNumbers")
@@ -394,7 +980,7 @@ const companyController = {
       }
 
       if (!category && !name) {
-        events = await Company.find()
+        events = await Company.find({ onlinePay: { $ne: 0 } })
           .populate({ path: "owner", select: "-password" })
           .populate("images")
           .populate("phoneNumbers")
@@ -520,6 +1106,35 @@ const companyController = {
       const { id, rating } = req.body;
 
       const result = await companyService.rating(id, user.id, rating);
+      const ifImpressions = await ImpressionsCompany.findOne({
+        company: id,
+        user: user.id,
+      });
+      const date = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+      const userDb = await User.findById(user.id);
+      const companyDb = await Company.findById(id).populate("images").populate("category");
+      if (ifImpressions) {
+        await ImpressionsCompany.findByIdAndUpdate(ifImpressions._id, {
+          // $set: { rating },
+          $set: { date,rating },
+        });
+      } else {
+        const companyImpression = new ImpressionsCompany({
+          rating,
+          comments: [],
+          images: [],
+          name: userDb.name,
+          surname: userDb.surname,
+          avatar: userDb.avatar,
+          companyName: companyDb.companyName,
+          companyImage: companyDb.images[0].name,
+          company: companyDb._id,
+          companyCategory: companyDb.category.name,
+          user: user.id,
+          date,
+        });
+        await companyImpression.save();
+      }
       if (result) {
         res.status(200).send(result);
       } else {
@@ -539,6 +1154,7 @@ const companyController = {
       const id = req.params.id;
       let status = req.body.status;
       const event = await companyService.reject(id, status);
+
       let template = "profile/company-single-rejected";
       let participants = 0;
       event.services.forEach((element) => {
@@ -579,7 +1195,7 @@ const companyController = {
         .populate("category");
       const user = await User.findById(dbCompany.owner);
       const eventCat = await companyCategory.findById(dbCompany.category);
-  
+
       const evLink = `alleven://companyDetail/${dbCompany._id}`;
 
       const dataNotif = {
@@ -589,21 +1205,24 @@ const companyController = {
         type: "Новая услуга",
         message: `${dbCompany.companyName} и услуги добавлены в приложение.`,
         meeting: dbCompany._id,
+        categoryIcon: dbCompany.category.avatar, //sarqel
         link: evLink,
       };
-     const nt= new Notification(dataNotif);
-     await nt.save();
-      notifEvent.emit(
-        "send",
-        dbCompany.owner._id.toString(),
-        JSON.stringify({
-          type: "Новая услуга",
-          date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-          message: `${dbCompany.companyName} и услуги добавлены в приложение.`,
-          categoryIcon: dbCompany.category.avatar, //sarqel
-          link: evLink,
-        })
-      );
+      const nt = new Notification(dataNotif);
+      await nt.save();
+      if (dbCompany.owner.notifCompany) {
+        notifEvent.emit(
+          "send",
+          dbCompany.owner._id.toString(),
+          JSON.stringify({
+            type: "Новая услуга",
+            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+            message: `${dbCompany.companyName} и услуги добавлены в приложение.`,
+            categoryIcon: dbCompany.category.avatar, //sarqel
+            link: evLink,
+          })
+        );
+      }
 
       res.render(template, {
         layout: "profile",
@@ -664,7 +1283,7 @@ const companyController = {
       const company = await Company.findById(req.params.id);
 
       if (!company) {
-        throw new Error("Meeting not found");
+        throw new Error("Company not found");
       }
 
       // Find all related comments
@@ -705,6 +1324,15 @@ const companyController = {
       await companyView.deleteMany({ companyId: req.params.id });
       await companyRating.deleteMany({ companyId: req.params.id });
       await companyPhones.deleteMany({ companyId: req.params.id });
+      await companyHotDeals.deleteMany({ companyId: req.params.id });
+      const services = await companyServiceDb.find({
+        companyId: req.params.id,
+      });
+      for (let i = 0; i < services.length; i++) {
+        const serviceRegistr = await servicesRegistrations.deleteMany({
+          serviceId: services[i]._id,
+        });
+      }
       await companyServiceDb.deleteMany({ companyId: req.params.id });
       await companyImpressionImages.deleteMany({ companyId: req.params.id });
       await User.findByIdAndUpdate(company.owner.toString(), {
@@ -761,9 +1389,9 @@ const companyController = {
         resultArr.push(resultComp);
       }
       for (let z = 0; z < resultArr.length; z++) {
-        const hours = moment.tz(process.env.TZ).format("HH:mm");
-        const splitOpen = resultArr[z].startHour.split(":");
-        const splitClose = resultArr[z].endHour.split(":");
+        // const hours = moment.tz(process.env.TZ).format("HH:mm");
+        // const splitOpen = resultArr[z].startHour.split(":");
+        // const splitClose = resultArr[z].endHour.split(":");
         const isLiked = await companyLikes.findOne({
           user: user.id,
           companyId: resultArr[z]._id,
@@ -787,12 +1415,42 @@ const companyController = {
           resultArr[z].isRating = true;
         }
 
-        if (
-          Number(hours) >= Number(splitOpen[0]) &&
-          Number(hours) < Number(splitClose[0])
-        ) {
-          resultArr[z].open = true;
+        // if (
+        //   Number(hours) >= Number(splitOpen[0]) &&
+        //   Number(hours) < Number(splitClose[0])
+        // ) {
+        //   resultArr[z].open = true;
+        // }
+        const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+        function isCompanyOpen(startHour, closeHour, currentTime) {
+          const parseTime = (time) => {
+            const [hour, minute] = time.split(":").map(Number);
+            return { hour, minute };
+          };
+
+          const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+          const start = parseTime(startHour);
+          const close = parseTime(closeHour);
+          const current = parseTime(currentTime);
+
+          const startMinutes = toMinutes(start);
+          const closeMinutes =
+            toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+          const currentMinutes = toMinutes(current);
+
+          return (
+            currentMinutes >= startMinutes && currentMinutes < closeMinutes
+          );
         }
+
+        const openBool = isCompanyOpen(
+          resultArr[z].startHour,
+          resultArr[z].endHour,
+          hours
+        );
+        resultArr[z].open = openBool;
       }
 
       res.status(200).send(resultArr);
@@ -853,29 +1511,42 @@ const companyController = {
             path: "comments",
             populate: { path: "user", select: "-password" },
           });
-        // for (let i = 0; i < resultChanged1.comments.length; i++) {
-        //   let object = {};
-        //   const commentsLength = await companyComment.find({
-        //     user: resultChanged1.comments[i].user._id.toString(),
-        //     companyId: resultChanged1._id.toString(),
-        //   });
-        //   object.comments_count = commentsLength.length;
-        //   object.avatar = resultChanged1.comments[i].user.avatar;
-        //   object.name = resultChanged1.comments[i].user.name;
-        //   object.surname = resultChanged1.comments[i].user.surname;
-        //   object.text = resultChanged1.comments[i].text;
 
-        //   // const commRating = await companyRating.findOne({
-        //   //   user: resultChanged1.comments[i].user._id.toString(),
-        //   //   companyId: resultChanged1._id.toString(),
-        //   // });
-
-        //   resultChanged1.impressions.push(object);
-        // }
-        // resultChanged1.impressions.reverse();
         const sendComment = await companyComment
           .findById(newComment._id)
           .populate({ path: "user", select: "name surname avatar" });
+
+        const userDb = await User.findById(user.id);
+        const companyDb = await Company.findById(companyId).populate("images").populate("category");
+        const ifImpressions = await ImpressionsCompany.findOne({
+          company: companyId,
+          user: user.id,
+        });
+        const dateTime = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+
+        if (ifImpressions) {
+          await ImpressionsCompany.findByIdAndUpdate(ifImpressions._id, {
+            $push: { comments: text },
+            $set: { date: dateTime },
+          });
+        } else {
+          const companyImpression = new ImpressionsCompany({
+            rating: 0,
+            comments: [text],
+            images: [],
+            name: userDb.name,
+            surname: userDb.surname,
+            avatar: userDb.avatar,
+            companyName: companyDb.companyName,
+            companyImage: companyDb.images[0].name,
+            company: companyDb._id,
+            companyCategory: companyDb.category.name,
+            user: user.id,
+            date: dateTime,
+          });
+          await companyImpression.save();
+        }
+
         res.status(200).send({
           comment: sendComment,
         });
@@ -904,10 +1575,11 @@ const companyController = {
         const company = await Company.findById(companyId).populate("likes");
         company.likes.push(newLike._id);
         await company.save();
-
+        const companyDb = await Company.findById(companyId);
         res.status(200).json({
           message: "Like added successfully",
           company,
+          likes: companyDb.likes,
         });
         // }
       } else {
@@ -921,6 +1593,7 @@ const companyController = {
         res.status(200).json({
           message: "Like deleted successfully",
           company,
+          likes: company.likes,
         });
       }
     } catch (error) {
@@ -959,7 +1632,6 @@ const companyController = {
           user: user.id,
           companyId: id,
         });
- 
 
         if (!ifView) {
           const companyViewOne = new companyView({
@@ -1026,12 +1698,10 @@ const companyController = {
               process.env.TZ
             );
 
-
             // Check if the fixed time is after now
             const now = moment.tz(process.env.TZ);
             if (fixedTime.isAfter(now)) {
               upcomingDeals.push(resultChanged1.hotDeals[i]);
-
             } else {
               await companyHotDeals.findByIdAndUpdate(
                 resultChanged1.hotDeals[i]._id,
@@ -1080,11 +1750,9 @@ const companyController = {
               process.env.TZ
             );
 
-
             const now = moment.tz(process.env.TZ);
             if (fixedTime.isAfter(now)) {
               upcomingDeals.push(resultChanged1.hotDeals[i]);
-
             } else {
               await companyHotDeals.findByIdAndUpdate(
                 resultChanged1.hotDeals[i]._id,
@@ -1094,6 +1762,7 @@ const companyController = {
           }
           resultChanged1.hotDeals = upcomingDeals;
         }
+        await resultChanged1.save();
 
         const isLiked = await companyLikes.findOne({
           user: user.id,
@@ -1114,21 +1783,62 @@ const companyController = {
           user: user.id,
           companyId: resultChanged1._id.toString(),
         });
+        const registerArray = [];
 
         if (isRating) {
           resultChanged1.isRating = true;
         }
 
-        const hours = moment.tz(process.env.TZ).format("HH:mm");
-        const splitOpen = resultChanged1.startHour.split(":");
-        const splitClose = resultChanged1.endHour.split(":");
-        await resultChanged1.save();
-        if (
-          Number(hours) >= Number(splitOpen[0]) &&
-          Number(hours) < Number(splitClose[0])
-        ) {
-          resultChanged1.open = true;
+        for (let i = 0; i < resultChanged1.services.length; i++) {
+          const serviceRegistr = await servicesRegistrations.findOne({
+            serviceId: resultChanged1.services[i]._id,
+            user: user.id,
+            status: 1,
+          });
+          if (serviceRegistr) {
+            registerArray.push(serviceRegistr);
+          }
         }
+
+        if (registerArray.length) {
+          resultChanged1.isImpression = true;
+        }
+        const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+        function isCompanyOpen(startHour, closeHour, currentTime) {
+          const parseTime = (time) => {
+            const [hour, minute] = time.split(":").map(Number);
+            return { hour, minute };
+          };
+
+          const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+          const start = parseTime(startHour);
+          const close = parseTime(closeHour);
+          const current = parseTime(currentTime);
+
+          const startMinutes = toMinutes(start);
+          const closeMinutes =
+            toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+          const currentMinutes = toMinutes(current);
+
+          return (
+            currentMinutes >= startMinutes && currentMinutes < closeMinutes
+          );
+        }
+
+        const openBool = isCompanyOpen(
+          resultChanged1.startHour,
+          resultChanged1.endHour,
+          hours
+        );
+        resultChanged1.open = openBool;
+        // if (
+        //   Number(hours) >= Number(splitOpen[0]) &&
+        //   Number(hours) < Number(splitClose[0])
+        // ) {
+        //   resultChanged1.open = true;
+        // }
 
         // for (let i = 0; i < resultChanged1.comments.length; i++) {
         //   let object = {};
@@ -1247,16 +1957,46 @@ const companyController = {
             populate: { path: "user", select: "name surname avatar" },
           });
 
-        const hours = moment.tz(process.env.TZ).format("HH:mm");
-        const splitOpen = resultChanged1.startHour.split(":");
-        const splitClose = resultChanged1.endHour.split(":");
+        // const hours = moment.tz(process.env.TZ).format("HH:mm");
+        // const splitOpen = resultChanged1.startHour.split(":");
+        // const splitClose = resultChanged1.endHour.split(":");
         await resultChanged1.save();
-        if (
-          Number(hours) >= Number(splitOpen[0]) &&
-          Number(hours) < Number(splitClose[0])
-        ) {
-          resultChanged1.open = true;
+        const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+        function isCompanyOpen(startHour, closeHour, currentTime) {
+          const parseTime = (time) => {
+            const [hour, minute] = time.split(":").map(Number);
+            return { hour, minute };
+          };
+
+          const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+          const start = parseTime(startHour);
+          const close = parseTime(closeHour);
+          const current = parseTime(currentTime);
+
+          const startMinutes = toMinutes(start);
+          const closeMinutes =
+            toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+          const currentMinutes = toMinutes(current);
+
+          return (
+            currentMinutes >= startMinutes && currentMinutes < closeMinutes
+          );
         }
+
+        const openBool = isCompanyOpen(
+          resultChanged1.startHour,
+          resultChanged1.endHour,
+          hours
+        );
+        resultChanged1.open = openBool;
+        // if (
+        //   Number(hours) >= Number(splitOpen[0]) &&
+        //   Number(hours) < Number(splitClose[0])
+        // ) {
+        //   resultChanged1.open = true;
+        // }
         // resultChanged1.share=`/company/${resultChanged1._id}`
         // for (let i = 0; i < resultChanged1.comments.length; i++) {
         //   let object = {};
@@ -1294,11 +2034,9 @@ const companyController = {
             process.env.TZ
           );
 
-
           const now = moment.tz(process.env.TZ);
           if (fixedTime.isAfter(now)) {
             upcomingDeals.push(resultChanged1.hotDeals[i]);
-
           } else {
             await companyHotDeals.findByIdAndUpdate(
               resultChanged1.hotDeals[i]._id,
@@ -1353,11 +2091,9 @@ const companyController = {
                 process.env.TZ
               );
 
-
               const now = moment.tz(process.env.TZ);
               if (fixedTime.isAfter(now)) {
                 upcomingDeals.push(resultCompany[z].hotDeals[i]);
-
               } else {
                 await companyHotDeals.findByIdAndUpdate(
                   resultCompany[z].hotDeals[i]._id,
@@ -1366,16 +2102,46 @@ const companyController = {
               }
             }
             resultCompany[z].hotDeals = upcomingDeals;
-            const hours = moment.tz(process.env.TZ).format("HH:mm");
-            const splitOpen = resultCompany[z].startHour.split(":");
-            const splitClose = resultCompany[z].endHour.split(":");
+            // const hours = moment.tz(process.env.TZ).format("HH:mm");
+            // const splitOpen = resultCompany[z].startHour.split(":");
+            // const splitClose = resultCompany[z].endHour.split(":");
 
-            if (
-              Number(hours) >= Number(splitOpen[0]) &&
-              Number(hours) < Number(splitClose[0])
-            ) {
-              resultCompany[z].open = true;
+            // if (
+            //   Number(hours) >= Number(splitOpen[0]) &&
+            //   Number(hours) < Number(splitClose[0])
+            // ) {
+            //   resultCompany[z].open = true;
+            // }
+            const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+            function isCompanyOpen(startHour, closeHour, currentTime) {
+              const parseTime = (time) => {
+                const [hour, minute] = time.split(":").map(Number);
+                return { hour, minute };
+              };
+
+              const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+              const start = parseTime(startHour);
+              const close = parseTime(closeHour);
+              const current = parseTime(currentTime);
+
+              const startMinutes = toMinutes(start);
+              const closeMinutes =
+                toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+              const currentMinutes = toMinutes(current);
+
+              return (
+                currentMinutes >= startMinutes && currentMinutes < closeMinutes
+              );
             }
+
+            const openBool = isCompanyOpen(
+              resultCompany[z].startHour,
+              resultCompany[z].endHour,
+              hours
+            );
+            resultCompany[z].open = openBool;
           }
           obj.company = resultCompany;
           dbObj.push(obj);
@@ -1427,12 +2193,10 @@ const companyController = {
                 process.env.TZ
               );
 
-
               // Check if the fixed time is after now
               const now = moment.tz(process.env.TZ);
               if (fixedTime.isAfter(now)) {
                 upcomingDeals.push(resultCompany[z].hotDeals[i]);
-
               } else {
                 await companyHotDeals.findByIdAndUpdate(
                   resultCompany[z].hotDeals[i]._id,
@@ -1442,16 +2206,46 @@ const companyController = {
             }
             resultCompany[z].hotDeals = upcomingDeals;
             // const hours = now.getHours();
-            const hours = moment.tz(process.env.TZ).format("HH:mm");
-            const splitOpen = resultCompany[z].startHour.split(":");
-            const splitClose = resultCompany[z].endHour.split(":");
+            // const hours = moment.tz(process.env.TZ).format("HH:mm");
+            // const splitOpen = resultCompany[z].startHour.split(":");
+            // const splitClose = resultCompany[z].endHour.split(":");
 
-            if (
-              Number(hours) >= Number(splitOpen[0]) &&
-              Number(hours) < Number(splitClose[0])
-            ) {
-              resultCompany[z].open = true;
+            // if (
+            //   Number(hours) >= Number(splitOpen[0]) &&
+            //   Number(hours) < Number(splitClose[0])
+            // ) {
+            //   resultCompany[z].open = true;
+            // }
+            const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+            function isCompanyOpen(startHour, closeHour, currentTime) {
+              const parseTime = (time) => {
+                const [hour, minute] = time.split(":").map(Number);
+                return { hour, minute };
+              };
+
+              const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+              const start = parseTime(startHour);
+              const close = parseTime(closeHour);
+              const current = parseTime(currentTime);
+
+              const startMinutes = toMinutes(start);
+              const closeMinutes =
+                toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+              const currentMinutes = toMinutes(current);
+
+              return (
+                currentMinutes >= startMinutes && currentMinutes < closeMinutes
+              );
             }
+
+            const openBool = isCompanyOpen(
+              resultCompany[z].startHour,
+              resultCompany[z].endHour,
+              hours
+            );
+            resultCompany[z].open = openBool;
           }
           obj.company = resultCompany;
           dbObj.push(obj);
@@ -1471,6 +2265,8 @@ const companyController = {
   getCompanys: async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
+      const myLatitude = 55.7558;
+      const myLongitude = 37.6173;
       if (authHeader) {
         const token = authHeader.split(" ")[1];
 
@@ -1524,12 +2320,10 @@ const companyController = {
               process.env.TZ
             );
 
-
             // Check if the fixed time is after now
             const now = moment.tz(process.env.TZ);
             if (fixedTime.isAfter(now)) {
               upcomingDeals.push(result[z].hotDeals[i]);
-
             } else {
               await companyHotDeals.findByIdAndUpdate(
                 result[z].hotDeals[i]._id,
@@ -1539,16 +2333,46 @@ const companyController = {
           }
           result[z].hotDeals = upcomingDeals;
           // const hours = now.getHours();
-          const hours = moment.tz(process.env.TZ).format("HH:mm");
-          const splitOpen = result[z].startHour.split(":");
-          const splitClose = result[z].endHour.split(":");
+          // const hours = moment.tz(process.env.TZ).format("HH:mm");
+          // const splitOpen = result[z].startHour.split(":");
+          // const splitClose = result[z].endHour.split(":");
 
-          if (
-            Number(hours) >= Number(splitOpen[0]) &&
-            Number(hours) < Number(splitClose[0])
-          ) {
-            result[z].open = true;
+          // if (
+          //   Number(hours) >= Number(splitOpen[0]) &&
+          //   Number(hours) < Number(splitClose[0])
+          // ) {
+          //   result[z].open = true;
+          // }
+          const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+          function isCompanyOpen(startHour, closeHour, currentTime) {
+            const parseTime = (time) => {
+              const [hour, minute] = time.split(":").map(Number);
+              return { hour, minute };
+            };
+
+            const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+            const start = parseTime(startHour);
+            const close = parseTime(closeHour);
+            const current = parseTime(currentTime);
+
+            const startMinutes = toMinutes(start);
+            const closeMinutes =
+              toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+            const currentMinutes = toMinutes(current);
+
+            return (
+              currentMinutes >= startMinutes && currentMinutes < closeMinutes
+            );
           }
+
+          const openBool = isCompanyOpen(
+            result[z].startHour,
+            result[z].endHour,
+            hours
+          );
+          result[z].open = openBool;
         }
 
         result.sort((a, b) => a.kilometr - b.kilometr);
@@ -1602,12 +2426,10 @@ const companyController = {
               process.env.TZ
             );
 
-
             // Check if the fixed time is after now
             const now = moment.tz(process.env.TZ);
             if (fixedTime.isAfter(now)) {
               upcomingDeals.push(result[z].hotDeals[i]);
-
             } else {
               await companyHotDeals.findByIdAndUpdate(
                 result[z].hotDeals[i]._id,
@@ -1617,16 +2439,46 @@ const companyController = {
           }
           resultCompany[z].hotDeals = upcomingDeals;
           // const hours = now.getHours();
-          const hours = moment.tz(process.env.TZ).format("HH:mm");
-          const splitOpen = result[z].startHour.split(":");
-          const splitClose = result[z].endHour.split(":");
+          // const hours = moment.tz(process.env.TZ).format("HH:mm");
+          // const splitOpen = result[z].startHour.split(":");
+          // const splitClose = result[z].endHour.split(":");
 
-          if (
-            Number(hours) >= Number(splitOpen[0]) &&
-            Number(hours) < Number(splitClose[0])
-          ) {
-            result[z].open = true;
+          // if (
+          //   Number(hours) >= Number(splitOpen[0]) &&
+          //   Number(hours) < Number(splitClose[0])
+          // ) {
+          //   result[z].open = true;
+          // }
+          const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+          function isCompanyOpen(startHour, closeHour, currentTime) {
+            const parseTime = (time) => {
+              const [hour, minute] = time.split(":").map(Number);
+              return { hour, minute };
+            };
+
+            const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+            const start = parseTime(startHour);
+            const close = parseTime(closeHour);
+            const current = parseTime(currentTime);
+
+            const startMinutes = toMinutes(start);
+            const closeMinutes =
+              toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+            const currentMinutes = toMinutes(current);
+
+            return (
+              currentMinutes >= startMinutes && currentMinutes < closeMinutes
+            );
           }
+
+          const openBool = isCompanyOpen(
+            result[z].startHour,
+            result[z].endHour,
+            hours
+          );
+          result[z].open = openBool;
         }
         result.sort((a, b) => a.kilometr - b.kilometr);
         res.status(200).send({ message: "access", data: result });
@@ -1687,7 +2539,7 @@ const companyController = {
       }
 
       const averageRating = calculateAverageRating(result.ratings);
-  
+
       const resultChanged1 = await Company.findOneAndUpdate(
         { _id: userDb.company._id },
         {
@@ -1748,17 +2600,45 @@ const companyController = {
         resultChanged1.isRating = true;
       }
 
-      const hours = moment.tz(process.env.TZ).format("HH:mm");
-      const splitOpen = resultChanged1.startHour.split(":");
-      const splitClose = resultChanged1.endHour.split(":");
+      // const hours = moment.tz(process.env.TZ).format("HH:mm");
+      // const splitOpen = resultChanged1.startHour.split(":");
+      // const splitClose = resultChanged1.endHour.split(":");
       await resultChanged1.save();
-      if (
-        Number(hours) >= Number(splitOpen[0]) &&
-        Number(hours) < Number(splitClose[0])
-      ) {
-        resultChanged1.open = true;
+      // if (
+      //   Number(hours) >= Number(splitOpen[0]) &&
+      //   Number(hours) < Number(splitClose[0])
+      // ) {
+      //   resultChanged1.open = true;
+      // }
+      const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+      function isCompanyOpen(startHour, closeHour, currentTime) {
+        const parseTime = (time) => {
+          const [hour, minute] = time.split(":").map(Number);
+          return { hour, minute };
+        };
+
+        const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+        const start = parseTime(startHour);
+        const close = parseTime(closeHour);
+        const current = parseTime(currentTime);
+
+        const startMinutes = toMinutes(start);
+        const closeMinutes =
+          toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+        const currentMinutes = toMinutes(current);
+
+        return currentMinutes >= startMinutes && currentMinutes < closeMinutes;
       }
-     
+
+      const openBool = isCompanyOpen(
+        resultChanged1.startHour,
+        resultChanged1.endHour,
+        hours
+      );
+      resultChanged1.open = openBool;
+
       for (let i = 0; i < resultChanged1.comments.length; i++) {
         for (let z = 0; z < resultChanged1.comments[i].answer.length; z++) {
           const findLike = await companyCommentAnswerLike.findOne({
@@ -1786,12 +2666,9 @@ const companyController = {
           process.env.TZ
         );
 
-
-        // Check if the fixed time is after now
         const now = moment.tz(process.env.TZ);
         if (fixedTime.isAfter(now)) {
           upcomingDeals.push(resultChanged1.hotDeals[i]);
-
         } else {
           await companyHotDeals.findByIdAndUpdate(
             resultChanged1.hotDeals[i]._id,
@@ -1805,29 +2682,32 @@ const companyController = {
       }
       resultChanged1.hotDeals = upcomingDeals;
       const today = moment.tz(process.env.TZ).format("YYYY-MM-DD");
-      const tomorrow = moment.tz(process.env.TZ).add(1, 'day').format("YYYY-MM-DD"); // Add 1 day to today's date
+      const tomorrow = moment
+        .tz(process.env.TZ)
+        .add(1, "day")
+        .format("YYYY-MM-DD"); // Add 1 day to today's date
 
-     let countToday = [];
+      let countToday = [];
       let countAfter = [];
-for (let i = 0; i < resultChanged1.services.length; i++) {
-  // const element = array[i];
-  
-     const serviceRegisterToday = await servicesRegistrations.find({
+      for (let i = 0; i < resultChanged1.services.length; i++) {
+        // const element = array[i];
+
+        const serviceRegisterToday = await servicesRegistrations.find({
           serviceId: resultChanged1.services[i]._id,
           date: { $regex: `^${today}` },
         });
-        
+
         const serviceRegisterAfter = await servicesRegistrations.find({
           serviceId: resultChanged1.services[i],
           date: { $gt: tomorrow }, // Matches today and dates after today
         });
-        
+
         countAfter.push(serviceRegisterAfter.length);
         countToday.push(serviceRegisterToday.length);
-      ;}
-      resultChanged1.todayRegisters=countToday.reduce((a, b) => a + b, 0);
-      resultChanged1.afterRegisters=countAfter.reduce((a, b) => a + b, 0);
-      
+      }
+      resultChanged1.todayRegisters = countToday.reduce((a, b) => a + b, 0);
+      resultChanged1.afterRegisters = countAfter.reduce((a, b) => a + b, 0);
+
       // resultChanged1.todayRegisters = countToday;
       // resultChanged1.afterRegisters = countAfter;
       res.status(200).send(resultChanged1);
@@ -1876,9 +2756,10 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
 
         const result = await companyService.addCompany(data, user.id);
 
-
-        const db = await Company.findById(result.company._id);
+        const db = await Company.findById(result.company._id).populate("owner");
         const evLink = `alleven://eventDetail/${db._id}`;
+        const categor = await companyCategory.find({ _id: db.category });
+
         const dataNotif = {
           status: 2,
           date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss"),
@@ -1886,24 +2767,28 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
           type: "Новая услуга",
           message: `Ваше ${db.companyName} и услуги находится на модерации`,
           event: db._id,
+          categoryIcon: categor.avatar,
           link: evLink,
         };
         let role = await Role.findOne({ name: "USER" });
         dataNotif.sent = role;
-        const nt= new Notification(dataNotif);
+        const nt = new Notification(dataNotif);
         await nt.save();
-        const categor = await companyCategory.find({ _id: db.category });
-        notifEvent.emit(
-          "send",
-          db.owner.toString(),
-          JSON.stringify({
-            type: "Новая услуга",
-            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss"),
-            message: `Ваше ${db.companyName} и услуги находится на модерации`,
-            categoryIcon: categor.avatar,
-            link: evLink,
-          })
-        );
+        if (db.owner.notifCompany) {
+          notifEvent.emit(
+            "send",
+            db.owner._id.toString(),
+            JSON.stringify({
+              type: "Новая услуга",
+              date_time: moment
+                .tz(process.env.TZ)
+                .format("YYYY-MM-DD HH:mm:ss"),
+              message: `Ваше ${db.companyName} и услуги находится на модерации`,
+              categoryIcon: categor.avatar,
+              link: evLink,
+            })
+          );
+        }
 
         notifEvent.emit(
           "send",
@@ -2145,12 +3030,10 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
                 process.env.TZ
               );
 
-
               // Check if the fixed time is after now
               const now = moment.tz(process.env.TZ);
               if (fixedTime.isAfter(now)) {
                 upcomingDeals.push(company[z].hotDeals[i]);
-
               } else {
                 await companyHotDeals.findByIdAndUpdate(
                   company[z].hotDeals[i]._id,
@@ -2160,16 +3043,46 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
             }
             company[z].hotDeals = upcomingDeals;
             // const hours = now.getHours();
-            const hours = moment.tz(process.env.TZ).format("HH:mm");
-            const splitOpen = company[z].startHour.split(":");
-            const splitClose = company[z].endHour.split(":");
+            // const hours = moment.tz(process.env.TZ).format("HH:mm");
+            // const splitOpen = company[z].startHour.split(":");
+            // const splitClose = company[z].endHour.split(":");
 
-            if (
-              Number(hours) >= Number(splitOpen[0]) &&
-              Number(hours) < Number(splitClose[0])
-            ) {
-              company[z].open = true;
+            // if (
+            //   Number(hours) >= Number(splitOpen[0]) &&
+            //   Number(hours) < Number(splitClose[0])
+            // ) {
+            //   company[z].open = true;
+            // }
+            const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+            function isCompanyOpen(startHour, closeHour, currentTime) {
+              const parseTime = (time) => {
+                const [hour, minute] = time.split(":").map(Number);
+                return { hour, minute };
+              };
+
+              const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+              const start = parseTime(startHour);
+              const close = parseTime(closeHour);
+              const current = parseTime(currentTime);
+
+              const startMinutes = toMinutes(start);
+              const closeMinutes =
+                toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+              const currentMinutes = toMinutes(current);
+
+              return (
+                currentMinutes >= startMinutes && currentMinutes < closeMinutes
+              );
             }
+
+            const openBool = isCompanyOpen(
+              company[z].startHour,
+              company[z].endHour,
+              hours
+            );
+            company[z].open = openBool;
           }
           obj.category = compCategory[z].name;
           obj.avatar = compCategory[z].avatar;
@@ -2238,9 +3151,9 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
           company.sort((a, b) => a.kilometr - b.kilometr);
 
           for (let z = 0; z < company.length; z++) {
-            const hours = moment.tz(process.env.TZ).format("HH:mm");
-            const splitOpen = company[z].startHour.split(":");
-            const splitClose = company[z].endHour.split(":");
+            // const hours = moment.tz(process.env.TZ).format("HH:mm");
+            // const splitOpen = company[z].startHour.split(":");
+            // const splitClose = company[z].endHour.split(":");
             let upcomingDeals = [];
             for (let i = 0; i < company[z].hotDeals.length; i++) {
               const dealTime = "2024-12-02 15:00";
@@ -2250,12 +3163,10 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
                 process.env.TZ
               );
 
-
               // Check if the fixed time is after now
               const now = moment.tz(process.env.TZ);
               if (fixedTime.isAfter(now)) {
                 upcomingDeals.push(company[z].hotDeals[i]);
-
               } else {
                 await companyHotDeals.findByIdAndUpdate(
                   company[z].hotDeals[i]._id,
@@ -2264,12 +3175,43 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
               }
             }
             company[z].hotDeals = upcomingDeals;
-            if (
-              Number(hours) >= Number(splitOpen[0]) &&
-              Number(hours) < Number(splitClose[0])
-            ) {
-              company[z].open = true;
+            // if (
+            //   Number(hours) >= Number(splitOpen[0]) &&
+            //   Number(hours) < Number(splitClose[0])
+            // ) {
+            //   company[z].open = true;
+            // }
+
+            const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+            function isCompanyOpen(startHour, closeHour, currentTime) {
+              const parseTime = (time) => {
+                const [hour, minute] = time.split(":").map(Number);
+                return { hour, minute };
+              };
+
+              const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+              const start = parseTime(startHour);
+              const close = parseTime(closeHour);
+              const current = parseTime(currentTime);
+
+              const startMinutes = toMinutes(start);
+              const closeMinutes =
+                toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+              const currentMinutes = toMinutes(current);
+
+              return (
+                currentMinutes >= startMinutes && currentMinutes < closeMinutes
+              );
             }
+
+            const openBool = isCompanyOpen(
+              company[z].startHour,
+              company[z].endHour,
+              hours
+            );
+            company[z].open = openBool;
           }
           obj.category = compCategory[z].name;
           obj.avatar = compCategory[z].avatar;
@@ -2337,9 +3279,9 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
           company.sort((a, b) => a.kilometr - b.kilometr);
 
           for (let z = 0; z < company.length; z++) {
-            const hours = moment.tz(process.env.TZ).format("HH:mm");
-            const splitOpen = company[z].startHour.split(":");
-            const splitClose = company[z].endHour.split(":");
+            // const hours = moment.tz(process.env.TZ).format("HH:mm");
+            // const splitOpen = company[z].startHour.split(":");
+            // const splitClose = company[z].endHour.split(":");
             let upcomingDeals = [];
             for (let i = 0; i < company[z].hotDeals.length; i++) {
               const dealTime = "2024-12-02 15:00";
@@ -2349,11 +3291,9 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
                 process.env.TZ
               );
 
-
               const now = moment.tz(process.env.TZ);
               if (fixedTime.isAfter(now)) {
                 upcomingDeals.push(company[z].hotDeals[i]);
-
               } else {
                 await companyHotDeals.findByIdAndUpdate(
                   company[z].hotDeals[i]._id,
@@ -2362,12 +3302,42 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
               }
             }
             company[z].hotDeals = upcomingDeals;
-            if (
-              Number(hours) >= Number(splitOpen[0]) &&
-              Number(hours) < Number(splitClose[0])
-            ) {
-              company[z].open = true;
+            // if (
+            //   Number(hours) >= Number(splitOpen[0]) &&
+            //   Number(hours) < Number(splitClose[0])
+            // ) {
+            //   company[z].open = true;
+            // }
+            const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+            function isCompanyOpen(startHour, closeHour, currentTime) {
+              const parseTime = (time) => {
+                const [hour, minute] = time.split(":").map(Number);
+                return { hour, minute };
+              };
+
+              const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+              const start = parseTime(startHour);
+              const close = parseTime(closeHour);
+              const current = parseTime(currentTime);
+
+              const startMinutes = toMinutes(start);
+              const closeMinutes =
+                toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+              const currentMinutes = toMinutes(current);
+
+              return (
+                currentMinutes >= startMinutes && currentMinutes < closeMinutes
+              );
             }
+
+            const openBool = isCompanyOpen(
+              company[z].startHour,
+              company[z].endHour,
+              hours
+            );
+            company[z].open = openBool;
           }
           obj.category = compCategory[z].name;
           obj.avatar = compCategory[z].avatar;
@@ -2435,9 +3405,9 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
           company.sort((a, b) => a.kilometr - b.kilometr);
 
           for (let z = 0; z < company.length; z++) {
-            const hours = moment.tz(process.env.TZ).format("HH:mm");
-            const splitOpen = company[z].startHour.split(":");
-            const splitClose = company[z].endHour.split(":");
+            // const hours = moment.tz(process.env.TZ).format("HH:mm");
+            // const splitOpen = company[z].startHour.split(":");
+            // const splitClose = company[z].endHour.split(":");
             let upcomingDeals = [];
             for (let i = 0; i < company[z].hotDeals.length; i++) {
               const dealTime = "2024-12-02 15:00";
@@ -2447,12 +3417,10 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
                 process.env.TZ
               );
 
-
               // Check if the fixed time is after now
               const now = moment.tz(process.env.TZ);
               if (fixedTime.isAfter(now)) {
                 upcomingDeals.push(company[z].hotDeals[i]);
-
               } else {
                 await companyHotDeals.findByIdAndUpdate(
                   company[z].hotDeals[i]._id,
@@ -2461,12 +3429,42 @@ for (let i = 0; i < resultChanged1.services.length; i++) {
               }
             }
             company[z].hotDeals = upcomingDeals;
-            if (
-              Number(hours) >= Number(splitOpen[0]) &&
-              Number(hours) < Number(splitClose[0])
-            ) {
-              company[z].open = true;
+            // if (
+            //   Number(hours) >= Number(splitOpen[0]) &&
+            //   Number(hours) < Number(splitClose[0])
+            // ) {
+            //   company[z].open = true;
+            // }
+            const hours = moment.tz(process.env.TZ).format("HH:mm");
+
+            function isCompanyOpen(startHour, closeHour, currentTime) {
+              const parseTime = (time) => {
+                const [hour, minute] = time.split(":").map(Number);
+                return { hour, minute };
+              };
+
+              const toMinutes = ({ hour, minute }) => hour * 60 + minute;
+
+              const start = parseTime(startHour);
+              const close = parseTime(closeHour);
+              const current = parseTime(currentTime);
+
+              const startMinutes = toMinutes(start);
+              const closeMinutes =
+                toMinutes(close) + (close.hour < start.hour ? 24 * 60 : 0); // Handle next-day close
+              const currentMinutes = toMinutes(current);
+
+              return (
+                currentMinutes >= startMinutes && currentMinutes < closeMinutes
+              );
             }
+
+            const openBool = isCompanyOpen(
+              company[z].startHour,
+              company[z].endHour,
+              hours
+            );
+            company[z].open = openBool;
           }
           obj.category = compCategory[z].name;
           obj.avatar = compCategory[z].avatar;

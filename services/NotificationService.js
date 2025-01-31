@@ -63,7 +63,7 @@ class NotificationService{
 
     update = async (id,data) => {
         let roles = await Role.find({name:data.role},{_id:1});
-        data.sent = roles;
+        data.sent = roles[0]._id;
         return await Notification.findById(id).updateOne(data);
 
     }
@@ -150,7 +150,7 @@ class NotificationService{
 
     storeAdmin = async (data) => {
         let roles = await Role.find({name:data.sent},{_id:1});
-        data.sent = roles;
+        data.sent = roles[0]._id;
         return await Notification.create(data)
     }
 

@@ -20,6 +20,9 @@ import EventCommentLikes from "../../../models/event/EventCommentLikes.js";
 import schedule from "node-schedule";
 import eventImpressionImages from "../../../models/event/EventImpressionImages.js";
 import Notification from "../../../models/Notification.js";
+import EventImpressionImages from "../../../models/event/EventImpressionImages.js";
+import EventComment from "../../../models/event/EventComment.js";
+import ImpressionsEvent from "../../../models/ImpressionsEvent.js";
 class EventController {
   constructor() {
     this.EventService = new EventService();
@@ -28,6 +31,96 @@ class EventController {
     this.CalculateTheDistance = new CalculateTheDistance();
     this.UserService = new UserService();
   }
+
+  myImpressions = async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+    const impressionImages = await EventImpressionImages.find({
+      user: user._id,
+    }).populate({
+      path: "event",
+      select: "_id name images address date",
+      populate: { path: "images" },
+    });
+    const resultImpressions = [];
+    const resultLike = [];
+    const resultFavorite = [];
+    impressionImages.map(async (impression) => {
+      const obj = {};
+      const comments = await EventComment.find({
+        user: user.id,
+        event: impression.event._id,
+      });
+      if (comments.length) {
+        obj.comments = comments;
+      } else {
+        obj.comments = null;
+      }
+      obj.name = impression.event.name;
+      obj.url = impression.event.images[0].name;
+      obj.date = impression.event.date;
+      obj.address = impression.event.address;
+
+      resultImpressions.push(obj);
+    });
+
+    const likeEvents = await EventLike.find({ user: user.id }).populate({
+      path: "eventId",
+      select: "_id name images address date",
+      populate: { path: "images" },
+    });
+    likeEvents.map(async (like) => {
+      const obj = {};
+      obj.name = like.eventId.name;
+      obj.url = like.eventId.images[0].name;
+      obj.date = like.eventId.date;
+      obj.address = like.eventId.address;
+      resultLike.push(obj);
+    });
+
+    const favoriteEvent = await EventFavorites.find({ user: user.id }).populate(
+      {
+        path: "eventId",
+        select: "_id name images address date",
+        populate: { path: "images" },
+      }
+    );
+
+    favoriteEvent.map(async (favorite) => {
+      const obj = {};
+      obj.name = favorite.eventId.name;
+      obj.url = favorite.eventId.images[0].name;
+      obj.date = favorite.eventId.date;
+      obj.address = favorite.eventId.address;
+      resultFavorite.push(obj);
+    });
+
+    res.status(200).send({
+      message: "success",
+      impressions: resultImpressions,
+      likes: resultLike,
+      favorites: resultFavorite,
+    });
+  };
+
+
+  myEventImpressions = async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+    const events = await Event.find({ owner: user.id });
+    const result = [];
+    for (let i = 0; i < events.length; i++) {
+      const impressions = await ImpressionsEvent.find({ event: events[i]._id });
+      result.push(...impressions);
+    }
+
+    // const data = result.flat();
+    result.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.status(200).send({ message: "success", impressions: result });
+  };
 
   ImpressionImage = async (req, res) => {
     const authHeader = req.headers.authorization;
@@ -89,6 +182,7 @@ class EventController {
       type: "impression",
       message: `Пользователь ${user.name} поделился впечатлением о событии ${eventDb.name}.`,
       event: event_id,
+      categoryIcon: eventDb.category.avatar, //sarqel
       link: evLink,
     };
     const nt = new Notification(dataNotif);
@@ -105,6 +199,39 @@ class EventController {
           link: evLink,
         })
       );
+    }
+
+    const userDb = await User.findById(user.id);
+
+    const ifImpressions = await ImpressionsEvent.findOne({
+      event: event_id,
+      user: user.id,
+    });
+    const date = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+
+    if (ifImpressions) {
+      for (let i = 0; i < files.length; i++) {
+        await ImpressionsEvent.findByIdAndUpdate(ifImpressions._id, {
+          $push: { images: files[i] },
+          $set: { date },
+        });
+      }
+    } else {
+      const eventImpression = new ImpressionsEvent({
+        rating: 0,
+        comments: [],
+        images: files,
+        name: userDb.name,
+        surname: userDb.surname,
+        avatar: userDb.avatar,
+        eventName: eventDb.name,
+        eventImage: eventDb.images[0].name,
+        event: eventDb._id,
+        category: eventDb.category.name,
+        user: user.id,
+        date,
+      });
+      await eventImpression.save();
     }
 
     return res
@@ -430,9 +557,9 @@ class EventController {
     const eventUpdate = await Event.findOneAndUpdate(
       { _id: id },
       {
-        $set: { ratingCalculated: averageRating }, 
+        $set: { ratingCalculated: averageRating },
       },
-      { new: true } 
+      { new: true }
     )
       .populate({ path: "owner", select: "name surname avatar phone_number" })
       .populate({
@@ -442,7 +569,7 @@ class EventController {
           select: "name surname avatar phone_number",
         },
       })
-      .populate("likes")
+      .populate({ path: "likes", select: "user" })
       .populate("images")
       .populate("participantsSpot")
       .populate("views")
@@ -456,8 +583,8 @@ class EventController {
         populate: [
           { path: "user", select: "name surname avatar" },
           {
-            path: "answer", 
-            populate: { path: "user", select: "name surname avatar" }, 
+            path: "answer",
+            populate: { path: "user", select: "name surname avatar" },
           },
         ],
       })
@@ -494,110 +621,120 @@ class EventController {
 
     const notificationTime = eventTime.clone().subtract(1, "hour");
 
-
     const currentTime = moment.tz(process.env.TZ).format();
 
-    async function sendMessage(idMeet) {
-      const eventDb = await Event.findById(idMeet)
-        .populate({
-          path: "participants",
-          populate: { path: "owner", select: "_id fcm_token notifEvent" },
-        })
-        .populate("participantSpot")
-        .populate("category")
-        .exec();
+    async function sendMessage(idMeet, type) {
+      try {
+        const eventDb = await Event.findById(idMeet)
+          .populate({
+            path: "participants",
+            populate: { path: "user", select: "_id fcm_token notifEvent" },
+          })
+          .populate({
+            path: "participantsSpot",
+            populate: { path: "user", select: "_id fcm_token notifEvent" },
+          })
+          .populate("category")
+          .exec();
 
-      if (eventDb.participants.length) {
-        for (let i = 0; i < eventDb.participants.length; i++) {
-          const element = eventDb.participants[i].user;
-          if (element.fcm_token[0]) {
-            const evLink = `alleven://eventDetail/${eventDb._id}`;
-            const dataNotif = {
-              status: 2,
-              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-              user: d.owner.toString(),
-              type: "participation",
-              message: `Ваше событие ${d.name} находится на модерации`,
-              categoryIcon: eventDb.category.avatar,
-              event: eventDb._id,
-              link: evLink,
-            };
-            const nt = new Notification(dataNotif);
-            await nt.save();
-            console.log(
-              `Событие ${eventDb.purpose} начнется через час. Не пропустите.`
-            );
-            const date_time = moment.tz(process.env.TZ).format();
-            if (userDb.notifEvent) {
-              notifEvent.emit(
-                "send",
-                element._id,
-                JSON.stringify({
+        if (type === "participants") {
+          console.log("mek jam araj");
+
+          if (eventDb.participants.length) {
+            for (let i = 0; i < eventDb.participants.length; i++) {
+              const element = eventDb.participants[i].user;
+              if (element.fcm_token[0]) {
+                const evLink = `alleven://eventDetail/${eventDb._id}`;
+                const dataNotif = {
+                  status: 2,
+                  date_time: moment
+                    .tz(process.env.TZ)
+                    .format("YYYY-MM-DD HH:mm"),
+                  user: element._id.toString(),
                   type: "participation",
-                  date_time,
-                  message: `Событие ${eventDb.purpose} начнется через час. Не пропустите.`,
-                  categoryIcon: eventDb.category.avatar, 
+                  message: `Событие ${eventDb.name} начнется через час. Не пропустите.`,
+                  categoryIcon: eventDb.category.avatar,
+                  event: eventDb._id.toString(),
                   link: evLink,
-                })
-              );
+                };
+                const nt = new Notification(dataNotif);
+                await nt.save();
+                console.log(
+                  `Событие ${eventDb.name} начнется через час. Не пропустите.`
+                );
+                const date_time = moment.tz(process.env.TZ).format();
+                if (element.notifEvent) {
+                  notifEvent.emit(
+                    "send",
+                    element._id.toString(),
+                    JSON.stringify({
+                      type: "participation",
+                      date_time,
+                      message: `Событие ${eventDb.name} начнется через час. Не пропустите.`,
+                      categoryIcon: eventDb.category.avatar,
+                      link: evLink,
+                    })
+                  );
+                }
+              }
             }
           }
         }
+        if (type === "participantsSpot") {
+          console.log("eventi sksman pah@");
+
+          if (eventDb.participants.length) {
+            for (let i = 0; i < eventDb.participants.length; i++) {
+              const element = eventDb.participants[i].user;
+              if (element.fcm_token[0]) {
+                const evLink = `alleven://eventDetail/${eventDb._id}`;
+                const dataNotif = {
+                  status: 2,
+                  date_time: moment
+                    .tz(process.env.TZ)
+                    .format("YYYY-MM-DD HH:mm"),
+                  user: element._id.toString(),
+                  type: "participation",
+                  message: `Событие ${eventDb.name} началось.`,
+                  categoryIcon: eventDb.category.avatar,
+                  event: eventDb._id.toString(),
+                  link: evLink,
+                };
+                const nt = new Notification(dataNotif);
+                await nt.save();
+                console.log(`Событие ${eventDb.name} началось.`);
+                const date_time = moment.tz(process.env.TZ).format();
+                if (element.notifEvent) {
+                  notifEvent.emit(
+                    "send",
+                    element._id.toString(),
+                    JSON.stringify({
+                      type: "participation",
+                      date_time,
+                      message: `Событие ${eventDb.name} началось.`,
+                      categoryIcon: eventDb.category.avatar,
+                      link: evLink,
+                    })
+                  );
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(error);
       }
     }
 
     schedule.scheduleJob(notificationTime.toDate(), () => {
-      sendMessage(event._id.toString());
+      sendMessage(event._id.toString(), "participants");
     });
-    async function sendEventMessage(idMeetSpot) {
-      const eventDb = await Event.findById(idMeetSpot)
-        .populate({
-          path: "participantsSpot",
-          populate: { path: "owner", select: "_id fcm_token notifEvent" },
-        })
-        .populate("category")
-        .exec();
-      if (eventDb) {
-        if (eventDb.notifEvent && eventDb.participantsSpot.length) {
-          for (let i = 0; i < eventDb.participantsSpot.length; i++) {
-            const element = eventDb.participantsSpot[i].user;
-            if (element.fcm_token[0]) {
-              const evLink = `alleven://eventDetail/${eventDb._id}`;
-              const dataNotif = {
-                status: 2,
-                date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-                user: eventDb.owner._id.toString(),
-                type: "participationSpot",
-                message: `Ваше событие ${eventDb.name} находится на модерации`,
-                categoryIcon: eventDb.category.avatar,
-                event: eventDb._id,
-                link: evLink,
-              };
-              const nt = new Notification(dataNotif);
-              await nt.save();
-              console.log(`Событие ${eventDb.purpose} началось.`);
-              const date_time = moment
-                .tz(process.env.TZ)
-                .format("YYYY-MM-DD HH:mm");
+    console.log(notificationTime.toDate(), "notificationTime.toDate()");
 
-              notifEvent.emit(
-                "send",
-                element._id,
-                JSON.stringify({
-                  type: "participationSpot",
-                  date_time,
-                  message: `Событие ${eventDb.purpose} началось.`,
-                  categoryIcon: eventDb.category.avatar, 
-                  link: evLink,
-                })
-              );
-            }
-          }
-        }
-      }
-    }
+    console.log(eventTime.toDate(), "eventTime.toDate()");
+
     schedule.scheduleJob(eventTime.toDate(), () => {
-      sendEventMessage(event._id.toString());
+      sendMessage(event._id.toString(), "participantsSpot");
     });
 
     return res.json({ status: "success", data: event });
@@ -660,21 +797,21 @@ class EventController {
         data = await Event.findByIdAndUpdate(
           { _id: id },
           {
-            $push: { view: view._id }, 
-            $set: { ratingCalculated: averageRating }, 
+            $push: { view: view._id },
+            $set: { ratingCalculated: averageRating },
           },
           { new: true }
         )
           .populate({ path: "owner", select: "-password" })
           .populate("participants")
-          .populate("likes")
+          .populate({ path: "likes", select: "user" })
           .populate("images")
           .populate({
             path: "participantsSpot",
             populate: { path: "user", select: "name surname avatar" },
           })
           .populate({
-            path: "impression_images", 
+            path: "impression_images",
             populate: { path: "user", select: "name surname avatar" },
           })
           .populate("views")
@@ -686,10 +823,10 @@ class EventController {
           .populate({
             path: "comments",
             populate: [
-              { path: "user", select: "_id name surname avatar" }, 
+              { path: "user", select: "_id name surname avatar" },
               {
-                path: "answer", 
-                populate: { path: "user", select: "name surname avatar" }, 
+                path: "answer",
+                populate: { path: "user", select: "name surname avatar" },
               },
             ],
           })
@@ -744,7 +881,6 @@ class EventController {
         }
         if (isJoin) {
           data.joinStatus = 2;
-
         }
 
         const isSpot = await EventParticipantsSpot.findOne({
@@ -759,13 +895,13 @@ class EventController {
         data = await Event.findByIdAndUpdate(
           { _id: id },
           {
-            $set: { ratingCalculated: averageRating }, 
+            $set: { ratingCalculated: averageRating },
           },
           { new: true }
         )
           .populate({ path: "owner", select: "-password" })
           .populate("participants")
-          .populate("likes")
+          .populate({ path: "likes", select: "user" })
           .populate("images")
           .populate({
             path: "impression_images",
@@ -781,10 +917,10 @@ class EventController {
           .populate({
             path: "comments",
             populate: [
-              { path: "user", select: "_id name surname avatar" }, 
+              { path: "user", select: "_id name surname avatar" },
               {
-                path: "answer", 
-                populate: { path: "user", select: "name surname avatar" }, 
+                path: "answer",
+                populate: { path: "user", select: "name surname avatar" },
               },
             ],
           })
@@ -820,7 +956,7 @@ class EventController {
         if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
           data.hour = true;
         }
-     
+
         if (isJoin) {
           data.joinStatus = 2;
         }
@@ -869,13 +1005,13 @@ class EventController {
       data = await Event.findByIdAndUpdate(
         { _id: id },
         {
-          $set: { ratingCalculated: averageRating }, 
+          $set: { ratingCalculated: averageRating },
         },
         { new: true }
       )
         .populate({ path: "owner", select: "-password" })
         .populate("participants")
-        .populate("likes")
+        .populate({ path: "likes", select: "user" })
         .populate("images")
         .populate("participantsSpot")
         .populate("views")
@@ -887,10 +1023,10 @@ class EventController {
         .populate({
           path: "comments",
           populate: [
-            { path: "user", select: "_id name surname avatar" }, 
+            { path: "user", select: "_id name surname avatar" },
             {
-              path: "answer", 
-              populate: { path: "user", select: "name surname avatar" }, 
+              path: "answer",
+              populate: { path: "user", select: "name surname avatar" },
             },
           ],
         })
@@ -908,10 +1044,8 @@ class EventController {
       }
       //  else if (differenceInMinutes <= 0) {
       //   hour=false
-      //   console.log("The start time has already passed.");
       // } else {
       //   hour=false
-      //   console.log("The start time is more than an hour away.");
       // }
       // for (let i = 0; i < data.comments.length; i++) {
       //   for (let z = 0; z < data.comments[i].answer.length; z++) {
@@ -933,7 +1067,6 @@ class EventController {
       // }
       res.status(200).send({ message: "success", data });
     }
-
   };
 
   eventImpressions = async (req, res) => {
@@ -1012,7 +1145,7 @@ class EventController {
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           const distance = earthRadius * c;
 
-          return distance; 
+          return distance;
         }
 
         const myLatitude = 55.7558;
@@ -1075,7 +1208,7 @@ class EventController {
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           const distance = earthRadius * c;
 
-          return distance; 
+          return distance;
         }
 
         const myLatitude = 55.7558;
@@ -1108,7 +1241,6 @@ class EventController {
 
       const resultCategory = await EventCategory.find();
       if (authHeader) {
-
         const token = authHeader.split(" ")[1];
 
         const user = jwt.decode(token);
@@ -1147,7 +1279,6 @@ class EventController {
         }
         resultObj.category = categoryArray;
         return res.status(200).send(resultObj);
-
       } else {
         for (let i = 0; i < resultCategory.length; i++) {
           let obj = {};
@@ -1214,7 +1345,7 @@ class EventController {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const distance = earthRadius * c;
 
-        return distance; 
+        return distance;
       }
 
       const myLatitude = latitude;
@@ -1260,6 +1391,7 @@ class EventController {
 
   socket = async (req, res) => {
     const db = await Event.findById("6748282c568a9e88c540b206");
+
     notifEvent.emit(
       "send",
       db.owner.toString(),
@@ -1335,6 +1467,48 @@ class EventController {
           }
         }
         for (let z = 0; z < result.upcoming.length; z++) {
+          // const isJoin = await EventParticipants.findOne({
+          //   user: user.id,
+          //   eventId: result.upcoming[z]._id,
+          // });
+          const timeMoscow = moment
+            .tz(process.env.TZ)
+            .format("YYYY-MM-DD HH:mm");
+          const eventTime = new Date(result.upcoming[z].started_time);
+          const dateNow = new Date(timeMoscow);
+
+          const timeDifference = eventTime - dateNow;
+
+          const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
+
+          if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
+            result.upcoming[z].hour = true;
+          }
+          // if (isJoin) {
+          //   result.upcoming[z].joinStatus = 2;
+          // }
+          // const isSpot = await EventParticipantsSpot.findOne({
+          //   user: user.id,
+          //   eventId: result.upcoming[z]._id,
+          // });
+          // if (isSpot) {
+
+          //   result.upcoming[z].joinStatus = 3;
+          // }
+          const isLikeDb = await EventLike.findOne({
+            eventId: result.upcoming[z]._id,
+            user: user.id,
+          });
+          if (isLikeDb) {
+            result.upcoming[z].isLike = true;
+          }
+          const isFavoriteDb = await EventFavorites.findOne({
+            eventId: result.upcoming[z]._id,
+            user: user.id,
+          });
+          if (isFavoriteDb) {
+            result.upcoming[z].isFavorite = true;
+          }
           const participant = await EventParticipants.findOne({
             eventId: result.upcoming[z]._id,
             user: user.id,
@@ -1345,8 +1519,9 @@ class EventController {
           });
           if (participant) {
             result.upcoming[z].joinStatus = 2;
+
             if (participantSpot) {
-              result.upcoming[z].spotStatus = 3;
+              result.upcoming[z].joinStatus = 3;
             }
           }
         }
@@ -1385,6 +1560,7 @@ class EventController {
         });
 
         result.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+
         // passed.sort((a, b) => a.kilometr - b.kilometr);
         res.status(200).send({
           message: "success",
@@ -1465,6 +1641,7 @@ class EventController {
 
         result.upcoming.sort((a, b) => a.kilometr - b.kilometr);
         result.passed.sort((a, b) => a.kilometr - b.kilometr);
+
         res.status(200).send({
           message: "success",
           data: result.upcoming,
@@ -1505,13 +1682,14 @@ class EventController {
           user: result.owner._id.toString(),
           type: "participation",
           message: `Пользователь ${userDb.name} присоединился к событию ${result.name}.`,
-          event: result._id,
+          event: result._id.toString(),
+          categoryIcon: result.category.avatar, //sarqel
           link: evLink,
         };
         const nt = new Notification(dataNotif);
         await nt.save();
         if (result.owner.notifEvent) {
-          const UserDb = await User.findById(user.id);
+          // const UserDb = await User.findById(user.id);
 
           notifEvent.emit(
             "send",
@@ -1540,10 +1718,8 @@ class EventController {
   addParticipantSpot = async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
-      // if (authHeader&&authHeader!=="null") {
       const token = authHeader.split(" ")[1];
       const user = jwt.decode(token);
-      // const user = { id: "656ecb2e923c5a66768f4cd3" };
       const { id } = req.body;
       if (id) {
         const participantSpot = new EventParticipantsSpot({
@@ -1551,9 +1727,13 @@ class EventController {
           eventId: id,
         });
         await participantSpot.save();
-        const result = await Event.findByIdAndUpdate(id, {
-          $push: { participantsSpot: participantSpot._id },
-        })
+        const result = await Event.findByIdAndUpdate(
+          id,
+          {
+            $push: { participantsSpot: participantSpot._id },
+          },
+          { new: true }
+        )
           .populate({ path: "owner", select: "_id notifEvent" })
           .populate("category");
         const evLink = `alleven://eventDetail/${id}`;
@@ -1564,7 +1744,7 @@ class EventController {
           type: "participationSpot",
           message: `Пользователь ${user.name} пришел на ваше событие ${result.name}. `,
           categoryIcon: result.category.avatar,
-          event: result.category.avatar,
+          event: result._id,
           link: evLink,
         };
         const nt = new Notification(dataNotif);
@@ -1577,7 +1757,7 @@ class EventController {
               type: "participationSpot",
               date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
               message: `Пользователь ${user.name} пришел на ваше событие ${result.name}. `,
-              categoryIcon: result.category.avatar, //sarqel
+              categoryIcon: result.category.map_avatar, //sarqel
               link: evLink,
             })
           );
@@ -1587,9 +1767,6 @@ class EventController {
       } else {
         return res.status(401).send({ message: "id not found" });
       }
-      // } else {
-      //   return res.status(401).send("Unauthorized");
-      // }
     } catch (error) {
       console.error(error);
       return res.status(500).send("Internal Server Error");

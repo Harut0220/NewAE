@@ -644,7 +644,7 @@ function burgerMenu(icon) {
   
       imgX.onclick = function () {
         arrForPhotos.splice(+this.attributes["data-number"].value, 1);
-        console.log(arrForPhotos.length);
+        // console.log(arrForPhotos.length);
         createPhotos();
       };
   

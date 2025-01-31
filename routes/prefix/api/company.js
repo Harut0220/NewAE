@@ -113,7 +113,25 @@ companyRoutes.post(
   companyController.serviceUpdate
 );
 
+companyRoutes.get("/get/hot/deals", companyController.getHotDeals);
 
+companyRoutes.get(
+  "/my/participant",
+  newAuthJWT,
+  companyController.myparticipant
+);
+
+companyRoutes.get(
+  "/my/company/impressions",
+  newAuthJWT,
+  companyController.myCompanyImpressions
+);
+
+companyRoutes.get(
+  "/my/impressions",
+  newAuthJWT,
+  companyController.myImpressions
+);
 // companyRoutes.get( "/deal/register/:id", isEmpParamObjId, companyController.dealsRegisters);
 
 export default companyRoutes;

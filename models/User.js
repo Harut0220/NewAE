@@ -165,6 +165,7 @@ const User = new Schema(
       type: Date,
       required: false,
     },
+    unread_notifications: {type:Number,default:0},
     statusMeeting:{type:String,default:"noVerified"},
     notifEvent: { type: Boolean, default: true },
     notifCompany:{type:Boolean,default:true},

@@ -6,10 +6,10 @@ class AccessTokenService{
 
     store = async (email,password) => {
         const user = await User.findOne({email});
-        console.log("user",user && !user.block);
+        // console.log("user",user && !user.block);
         if (user && !user.block) {
             let passCheck = await bcrypt.compare(password, user.password);
-            console.log("passCheck",passCheck);
+            // console.log("passCheck",passCheck);
             if(!passCheck){
                 console.log("0");
                 //res.json({"success":false,"message":"Wrong password"},401);
@@ -36,7 +36,9 @@ class AccessTokenService{
 
             if(fcm_token){
                 if(!user.fcm_token.includes(fcm_token)){
-                    user.fcm_token.push(fcm_token);
+                    const fcmArray=[fcm_token]
+                    fcmArray.push()
+                    user.fcm_token=fcmArray;
                     await user.save();
                 }
             }

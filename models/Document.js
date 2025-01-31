@@ -17,6 +17,7 @@ const Document = new Schema({
         default: "Date.now"
     },
     text:{type: String},
+    confirmed:{type:Boolean,default:false}
 })
 
 export default model('Document',Document)

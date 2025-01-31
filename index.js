@@ -1,8 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-// import mongoose from 'mongoose';
 import { engine, create } from "express-handlebars";
-import handlebars from "handlebars";
 import { webRoutes } from "./routes/web.js";
 import { apiRoutes } from "./routes/api.js";
 import { wsRoutes } from "./routes/ws.js";
@@ -15,58 +13,19 @@ import h from "./helper/global.js";
 import fileupload from "express-fileupload";
 import expressWs from "express-ws";
 import cors from "cors";
-import cron from "./cron/notification.js";
 import path from "path";
-// import moment from "moment";
-import ShareEventController from "./controllers/share/ShareEventController.js";
-// import mime from "mime";
 import { reportRoutes } from "./routes/report.js";
-// import multer from "multer";
-// import companyCategory from "./models/company/companyCategory.js";
-// import path from 'path';
-// import fs from "fs";
-// import saveImageToDisk from "./imageController/imageController.js";
-// import categoryCompany from "./public/categoryCompany.js";
-// import eventCategory from "./public/eventCategory.js";
-// import EventCategory from "./models/event/EventCategory.js";
-// import UploadService from "./services/UploadService.js";
-import companyModel from "./models/company/companyModel.js";
 import seedRouter from "./routes/seed.js";
 import reedRouter from "./routes/reed.js";
 import { dateNow } from "./config/timestamps.js";
 import moment from "moment-timezone";
-import { isEmpParamObjId } from "./middlewares/isEmpty.js";
-import newAuthJWT from "./middlewares/newAuthJWT.js";
 import shareRoutes from "./routes/share.js";
-import Document from "./models/Document.js";
-import User from "./models/User.js";
-import { admin } from "./config/firebase/messaging.js";
-// Your code using multer here
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config();
-// const template =
-// `<div class="invitation">
-//     <p>
-//       {{ greeting }} | {{ description }}
-//     </p>
-//     <img src="{{imageUrl}}" alt="Invitation Image" />
-//   </div>`
-// ;
-// // Data to pass into the template
-// const data = {
-//   greeting: "Online Invitation Card Platform",
-//   description: "We invite you to a birthday party",
-//   imageUrl:
-//     "https://chatapi.trigger.ltd/uploads/7415c8e5-9b4f-4ed9-b6d1-893267b413af.jpeg",
-// };
 
-// // Compile and render the template
-// const compiledTemplate = handlebars.compile(template);
-// const result = compiledTemplate(data);
-
-// Output the result (you can insert it into your HTML)
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -116,74 +75,14 @@ app.get("/some-route", (req, res) => {
   res.render("someTemplate", { url: process.env.URL });
 });
 
-// app.get("/test", async (req, res) => {
-//   const sendPushNotification = async (token, content) => {
-//     // const token = user.firebaseToken;
+const lastDate = moment("2025-01-22T10:49:19.299+00:00", "YYYY-MM-DDTHH:mm");
 
-//     if (!token) {
-//       return;
-//     }
-//     for (let i = 0; i < token.length; i++) {
-//       console.log("Sending notification to:", token[i]);
-//       const condition = "'stock-GOOG' in topics || 'industry-tech' in topics";
-
-//       const message = {
-//         notification: {
-//           title: "Նոր հաղորդագրություն",
-//           body: content,
-//         },
-//         token: token[i],
-//         condition: condition,
-//         data: {},
-//         apns: {
-//           headers: {
-//             "apns-priority": "10",
-//             "apns-push-type": "alert",
-//           },
-//           payload: {
-//             aps: {
-//               alert: {
-//                 title: "Նոր հաղորդագրություն",
-//                 body: content,
-//               },
-//               sound: "default",
-//             },
-//           },
-//         },
-//       };
-
-//       try {
-//         const response = await admin.messaging().send(message);
-//         console.log("Successfully sent message:", response);
-//       } catch (error) {
-//         console.error("Error sending message:", error);
-
-//         // Check for the specific error regarding invalid registration tokens
-//         if (
-//           error.errorInfo &&
-//           error.errorInfo.code === "messaging/registration-token-not-registered"
-//         ) {
-//           console.log(`Removing invalid token for user `);
-//           try {
-//             // Remove or invalidate the token in the database
-//             // await User.updateOne({ _id: user._id }, { $unset: { firebaseToken: 1 } });
-//             console.log(`Token removed for user `);
-//           } catch (error) {
-//             console.error(`Error updating database for user:`);
-//           }
-//         }
-//       }
-//     }
-//   };
-//   const user = await User.findById("67370e18ce5cd4db33b70deb");
-
-//   await sendPushNotification(user.fcm_token, "namak");
-//   res.send("1");
-// });
-
-// console.log(moment.tz(process.env.TZ).format("YYYY-MM-DD"));
-
-////////////////////////////////////////////////////////////
+// const dateNowd = moment();
+// console.log(dateNow,"dateNowd");
+// const difference = dateNow.diff(lastDate);
+// console.log(difference,"difference");
+// const differenceInHours = Math.round(moment.duration(difference).asHours());
+// console.log(differenceInHours,"differenceInHours");
 
 const start = async () => {
   await connect();

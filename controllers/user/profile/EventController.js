@@ -110,6 +110,7 @@ class EventController {
   singleMeeting=async(req,res)=>{
     let template = "profile/meeting-verify-page";
     let meetVerify = await meetingVerify.findById(req.params.id)
+    
     const user=await User.findById(meetVerify.user)
     if (meetVerify.status && meetVerify.status != 0 && meetVerify.status != 1) {
       template += "-rejected";

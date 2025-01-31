@@ -6,6 +6,8 @@ import EventCommentLikes from "../../../models/event/EventCommentLikes.js"
 import EventCommentService from "../../../services/EventCommentService.js"
 import jwt from "jsonwebtoken"
 import EventAnswerLikes from "../../../models/event/EventCommentAnswerLike.js"
+import ImpressionsEvent from "../../../models/ImpressionsEvent.js";
+import User from "../../../models/User.js";
 
 function getFormattedDate() {
     const date = new Date();
@@ -64,6 +66,7 @@ class CommentController{
         const token = authHeader.split(" ")[1];
         const user = jwt.decode(token);
         let {id,text} = req.body
+        const userDb=await User.findById(user.id)
         
         if(!id || !text){
             return res.status(400).send({message:"id and text are required"})
@@ -71,7 +74,31 @@ class CommentController{
         const commentDb =new EventComment({event:id,user:user.id,text,date:moment.tz(process.env.TZ).format()})
         await commentDb.save()
         const comment=await EventComment.findById(commentDb._id).populate({path:"user",select:"name surname avatar"})
-        await Event.findByIdAndUpdate(id,{$push:{comments:comment._id}})
+       await Event.findByIdAndUpdate(id,{$push:{comments:comment._id}})
+       const eventDb= await Event.findById(id).populate("images").populate("category")
+        const ifImpressions=await ImpressionsEvent.findOne({event:id,user:user.id})
+        const date=moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm")
+
+        if(ifImpressions){
+            await ImpressionsEvent.findByIdAndUpdate(ifImpressions._id,{$push:{comments:text},$set:{date}},)
+        }else{
+            const eventImpression=new ImpressionsEvent({
+                rating:0,
+                comments:[text],
+                images:[],
+                name:userDb.name,
+                surname:userDb.surname,
+                avatar:userDb.avatar,
+                eventName:eventDb.name,
+                eventImage:eventDb.images[0].name,
+                event:eventDb._id,
+                category: eventDb.category.name,
+                user:user.id,
+                date
+            })
+            await eventImpression.save()
+        }
+
         return res.json({'status':'success','data':comment});
     }
 

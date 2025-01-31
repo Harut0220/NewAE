@@ -55,7 +55,6 @@ class AuthController {
     // const sendPath=`${process.env.URL}/api/imageUser/${phone_number}.jpg`
     // saveImageToDisk(imagePath,"./storage/users/"+`${phone_number}`+".jpg")
     //     .then(() => {
-    //       console.log("File downloaded successfully!");
     //     })
     //     .catch((error) => {
     //       console.error("Error downloading file:", error);
@@ -78,6 +77,8 @@ class AuthController {
         message: "Не верный формат номера получателя SMS.",
       });
     }
+    console.log(rand, "rand");
+    
     myCache.set(`phone_number_${phone_number}`, rand, 54000);
     return res.json({
       status: "success",
@@ -131,10 +132,7 @@ class AuthController {
   //         return res.status(403).json({"message":"Вы ввели неверный номер телефона или пароль"})
   //     }
 
-  //     console.log({
-  //         "message":"Вы успешно вошли в систему",
-  //         "token":token
-  //     });
+ 
   //     return res.json({
   //         "message":"Вы успешно вошли в систему",
   //         "token":token
@@ -207,7 +205,6 @@ class AuthController {
         //   req.body.fcm_token,
         //   "fcm_token"
         // );
-        // // console.log("res1", res1);
         
       }
       

@@ -10,7 +10,6 @@ class DocxService{
 
         await mammoth.convertToHtml({path: dir + p})
             .then(function(result){
-                // console.log(result,"result.value");
                 
                 fs.writeFile(dir + newPath, result.value, function (err) {
                     if (err) throw err;

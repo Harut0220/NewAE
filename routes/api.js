@@ -91,7 +91,7 @@ apiRoutes
   .get(authenticateJWT, DocumentController.get)
   .post(authenticateJWT, store, DocumentController.store);
 
-apiRoutes.get("/get/documents", DocumentController.getDocuments);
+apiRoutes.get("/get/documents", newAuthJWT, DocumentController.getDocuments);
 
 apiRoutes.get("/get/documents/global", DocumentController.getDocumentsGlobal);
 

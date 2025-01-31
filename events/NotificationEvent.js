@@ -50,7 +50,6 @@ notifEvent.on('send', async (id,data) => {
 export default notifEvent;
 
 // notifEvent.on('send', (id,data) => {
-//   console.log(Object.keys(notifCol).length)
 //   if(Object.keys(notifCol).length && notifCol[id]){
 //     notifCol[id].send(data);
 //   }

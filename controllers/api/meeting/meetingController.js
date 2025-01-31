@@ -11,8 +11,104 @@ import meetingComment from "../../../models/meeting/meetingComment.js";
 import meetingImages from "../../../models/meeting/meetingImages.js";
 import schedule from "node-schedule";
 import meetingImpressionImage from "../../../models/meeting/meetingImpressionImage.js";
+import meetingLikes from "../../../models/meeting/meetingLikes.js";
+import meetingRating from "../../../models/meeting/meetingRating.js";
+import ImpressionsMeeting from "../../../models/ImpressionsMeeting.js";
 
 const meetingController = {
+  myImpressions: async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+    const impressionImages = await meetingImpressionImage
+      .find({
+        user: user._id,
+      })
+      .populate({
+        path: "meeting",
+        select: "_id name images address date",
+        populate: { path: "images" },
+      });
+    const resultImpressions = [];
+    const resultLike = [];
+    const resultFavorite = [];
+    impressionImages.map(async (impression) => {
+      const obj = {};
+      const comments = await meetingComment.find({
+        user: user.id,
+        meetingId: impression.meeting._id,
+      });
+      if (comments.length) {
+        obj.comments = comments;
+      } else {
+        obj.comments = null;
+      }
+      obj.name = impression.meeting.name;
+      obj.url = impression.meeting.images[0].path;
+      obj.date = impression.meeting.date;
+      obj.address = impression.meeting.address;
+
+      resultImpressions.push(obj);
+    });
+
+    const likeEvents = await meetingLikes.find({ user: user.id }).populate({
+      path: "meetingId",
+      select: "_id name images address date",
+      populate: { path: "images" },
+    });
+    likeEvents.map(async (like) => {
+      const obj = {};
+      obj.name = like.meetingId.name;
+      obj.url = like.meetingId.images[0].path;
+      obj.date = like.meetingId.date;
+      obj.address = like.meetingId.address;
+      resultLike.push(obj);
+    });
+
+    const favoriteEvent = await meetingFavorit
+      .find({ user: user.id })
+      .populate({
+        path: "meetingId",
+        select: "_id name images address date",
+        populate: { path: "images" },
+      });
+
+    favoriteEvent.map(async (favorite) => {
+      const obj = {};
+      obj.name = favorite.meetingId.name;
+      obj.url = favorite.meetingId.images[0].path;
+      obj.date = favorite.meetingId.date;
+      obj.address = favorite.meetingId.address;
+      resultFavorite.push(obj);
+    });
+
+    res.status(200).send({
+      message: "success",
+      impressions: resultImpressions,
+      likes: resultLike,
+      favorites: resultFavorite,
+    });
+  },
+
+  myMeetingImpressions: async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+    const meetings = await meetingModel.find({ owner: user.id });
+    const result = [];
+    for (let i = 0; i < meetings.length; i++) {
+      const impressions = await ImpressionsMeeting.find({
+        meeting: meetings[i]._id,
+      });
+      result.push(...impressions);
+    }
+
+    // const data = result.flat();
+    result.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.status(200).send({ message: "success", impressions: result });
+  },
+
   impressionImagesStore: async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
@@ -66,6 +162,7 @@ const meetingController = {
         type: "impression",
         message: `Пользователь ${user.name} поделился впечатлением о встрече ${meetingDb.name}.`,
         meeting: meeting_id,
+        categoryIcon: meetingDb.category.avatar, //sarqel
         link: evLink,
       };
       const nt = new Notification(dataNotif);
@@ -82,6 +179,39 @@ const meetingController = {
             link: evLink,
           })
         );
+      }
+
+      const ifImpressions = await ImpressionsMeeting.findOne({
+        meeting: meeting_id,
+        user: user.id,
+      });
+      const date = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+      const userDb = await User.findById(user.id);
+      const companyDb = await meetingModel
+        .findById(meeting_id)
+        .populate("images");
+      if (ifImpressions) {
+        for (let i = 0; i < files.length; i++) {
+          await ImpressionsMeeting.findByIdAndUpdate(ifImpressions._id, {
+            $push: { images: files[i] },
+            $set: { date },
+          });
+        }
+      } else {
+        const meetingImpression = new ImpressionsMeeting({
+          rating: 0,
+          comments: [],
+          images: files,
+          name: userDb.name,
+          surname: userDb.surname,
+          avatar: userDb.avatar,
+          meetingName: companyDb.name,
+          meetingImage: companyDb.images[0].name,
+          company: companyDb._id,
+          user: user.id,
+          date,
+        });
+        await meetingImpression.save();
       }
 
       return res
@@ -126,14 +256,12 @@ const meetingController = {
   },
   destroy: async (req, res) => {
     const des_events = req.body.des_events;
-  
 
     const result = await meetingService.destroy(des_events);
     return res.redirect("back");
   },
   destroyImage: async (req, res) => {
     const image = await meetingImages.findById(req.params.id);
- 
 
     const result = await meetingModel.findByIdAndUpdate(
       image.meetingId,
@@ -291,7 +419,6 @@ const meetingController = {
         { new: true }
       );
 
-
       res.redirect("back");
     } catch (error) {
       console.error(error);
@@ -318,7 +445,8 @@ const meetingController = {
     let status = req.body.status;
     let event = await meetingService.reject(req.params.id, { status });
     const userMeet = await User.findById(event.user);
-    const template = "profile/meeting-verify-rejected";
+    const meetVerifyDb = await meetingVerify.findOne({ user: event.user });
+    const template = "profile/meeting-verify-page-rejected";
 
     // const evLink = `alleven://eventDetail/${event_id}`;
     // notifEvent.emit(
@@ -335,7 +463,8 @@ const meetingController = {
     //   })
     // );
 
-    localhost: 3000;
+    // localhost: 3000;
+
     res.render(template, {
       layout: "profile",
       title: "Verification",
@@ -406,7 +535,6 @@ const meetingController = {
 
       const user = jwt.decode(token);
 
-
       const { meetingId, text } = req.body;
       const result = await meetingService.addComment(user.id, meetingId, text);
 
@@ -450,7 +578,6 @@ const meetingController = {
         .findById(id)
         .populate("images")
         .populate("participants");
-
 
       res.render(template, {
         layout: "profile",
@@ -535,19 +662,23 @@ const meetingController = {
           date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
           user: userDb._id.toString(),
           type: "confirm_passport",
+          categoryIcon: "/icon/Passport.png",
           message: `Ваша личность успешно подтверждена. Теперь вы можете создавать встречи.`,
         };
         const nt = new Notification(dataNotif);
         await nt.save();
-        notifEvent.emit(
-          "send",
-          userDb._id.toString(),
-          JSON.stringify({
-            type: "confirm_passport",
-            date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
-            message: `Ваша личность успешно подтверждена. Теперь вы можете создавать встречи.`,
-          })
-        );
+        if (userDb.notifMeeting) {
+          notifEvent.emit(
+            "send",
+            userDb._id.toString(),
+            JSON.stringify({
+              type: "confirm_passport",
+              date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
+              message: `Ваша личность успешно подтверждена. Теперь вы можете создавать встречи.`,
+              categoryIcon: "/icon/Passport.png",
+            })
+          );
+        }
 
         res.render(template, {
           layout: "profile",
@@ -664,12 +795,10 @@ const meetingController = {
         const eventTime = moment.tz(dat, process.env.TZ);
 
         const notificationTime = eventTime.clone().subtract(1, "hour");
-  
 
         const currentTime = moment.tz(process.env.TZ).format();
-  
 
-        async function sendMessage(idMeet) {
+        async function sendMessage(idMeet, type) {
           const meetingDb = await meetingModel
             .findById(idMeet)
             .populate({
@@ -677,6 +806,7 @@ const meetingController = {
               populate: { path: "user", select: "_id fcm_token" },
             })
             .populate("participantSpot")
+            .populate("images")
             .exec();
           if (meetingDb) {
             for (let i = 0; i < meetingDb.participants.length; i++) {
@@ -689,7 +819,7 @@ const meetingController = {
                   user: element._id.toString(),
                   type: "participation",
                   message: `Ваше событие ${d.name} находится на модерации`,
-                  // categoryIcon: category.avatar,
+                  categoryIcon: meetingDb.images[0].path,
                   meeting: meetingDb._id,
                   link: evLink,
                 };
@@ -698,7 +828,7 @@ const meetingController = {
                 console.log(
                   `Встреча ${meetingDb.purpose} начнется через час. Не пропустите.`
                 );
-                if (userDb.notifMeeting) {
+                if (element.notifMeeting) {
                   notifEvent.emit(
                     "send",
                     element._id,
@@ -708,7 +838,7 @@ const meetingController = {
                         .tz(process.env.TZ)
                         .format("YYYY-MM-DD HH:mm"),
                       message: `Встреча ${meetingDb.purpose} начнется через час. Не пропустите.`,
-                      // categoryIcon: meetingDb.category.avatar,//sarqel
+                      categoryIcon: meetingDb.images[0].path,
                       link: evLink,
                     })
                   );
@@ -728,10 +858,9 @@ const meetingController = {
               path: "participantSpot",
               populate: { path: "user", select: "_id fcm_token" },
             })
+            .populate("images")
             .exec();
           if (meetingDb) {
-
-
             for (let i = 0; i < meetingDb.participantSpot.length; i++) {
               const element = meetingDb.participantSpot[i].user;
               if (element.fcm_token[0]) {
@@ -744,27 +873,28 @@ const meetingController = {
                   user: element._id.toString(),
                   type: "participationSpot",
                   message: `Ваше событие ${d.name} находится на модерации`,
-                  // categoryIcon: category.avatar,
+                  categoryIcon: meetingDb.images[0].path,
                   meeting: meetingDb._id,
                   link: evLink,
                 };
                 const nt = new Notification(dataNotif);
                 await nt.save();
                 console.log(`Встреча ${meetingDb.purpose} началось.`);
-
-                notifEvent.emit(
-                  "send",
-                  element._id.toString(),
-                  JSON.stringify({
-                    type: "participationSpot",
-                    date_time: moment
-                      .tz(process.env.TZ)
-                      .format("YYYY-MM-DD HH:mm"),
-                    message: `Встреча ${meetingDb.purpose} началось.`,
-                    // categoryIcon: meetingDb.category.avatar,//sarqel
-                    link: evLink,
-                  })
-                );
+                if (element.notifMeeting) {
+                  notifEvent.emit(
+                    "send",
+                    element._id.toString(),
+                    JSON.stringify({
+                      type: "participationSpot",
+                      date_time: moment
+                        .tz(process.env.TZ)
+                        .format("YYYY-MM-DD HH:mm"),
+                      message: `Встреча ${meetingDb.purpose} началось.`,
+                      categoryIcon: meetingDb.images[0].path,
+                      link: evLink,
+                    })
+                  );
+                }
               }
             }
           }
@@ -844,9 +974,7 @@ const meetingController = {
     }
 
     if (name) {
-      meetingsRes = await meetingModel
-        .find({ purpose: name })
-        .populate({ path: "user", select: "-password" });
+      meetingsRes = await meetingModel.find({ purpose: name }).populate("user");
       params.name = name;
     }
 
@@ -856,9 +984,7 @@ const meetingController = {
           $gte: new Date(date_from).toISOString(),
         };
       }
-      meetingsRes = await meetingModel
-        .find(params)
-        .populate({ path: "user", select: "-password" });
+      meetingsRes = await meetingModel.find(params).populate("user");
 
       // params.started_time = {
       //   $gte: new Date(date_from).toISOString(),
@@ -866,11 +992,8 @@ const meetingController = {
     }
 
     if (!name && !date_from) {
-      meetingsRes = await meetingModel
-        .find()
-        .populate({ path: "user", select: "-password" });
+      meetingsRes = await meetingModel.find().populate("user");
     }
-
 
     res.render("profile/meeting", {
       layout: "profile",

@@ -10,7 +10,7 @@ import {
   rating,
   comment,
   commentLike,
-  ImpressionImage
+  ImpressionImage,
 } from "../../../middlewares/validate/api/event.js";
 import RatingController from "../../../controllers/api/event/RatingController.js";
 import CommentController from "../../../controllers/api/event/CommentController.js";
@@ -29,7 +29,7 @@ eventRoutes.get(
 
 eventRoutes.get("/single/:id", isEmpParamObjId, EventController.single);
 
-eventRoutes.post("/store",newAuthJWT, event, EventController.store);
+eventRoutes.post("/store", newAuthJWT, event, EventController.store);
 eventRoutes.post(
   "/add/participant",
   newAuthJWT,
@@ -101,7 +101,11 @@ eventRoutes.post("/socketTest", EventController.socket);
 /////////////////////////////////////////// //authenticateJWT,
 // eventRoutes.put('/edit/:id',empObj,authenticateJWT,EventController.edit);
 // //authenticateJWTWithoutCheck,
-eventRoutes.get('/categories',authenticateJWTWithoutCheck,EventCategoryController.index);
+eventRoutes.get(
+  "/categories",
+  authenticateJWTWithoutCheck,
+  EventCategoryController.index
+);
 //authenticateJWT,eventCategory,
 eventRoutes.post(
   "/category/store",
@@ -109,13 +113,21 @@ eventRoutes.post(
   EventCategoryController.store
 );
 // //authenticateJWT,
-eventRoutes.get('/like',authenticateJWT,LikeController.index);
+eventRoutes.get("/like", authenticateJWT, LikeController.index);
 eventRoutes.post(
   "/impression-images/store",
   newAuthJWT,
   ImpressionImage,
   EventController.ImpressionImage
 );
+
+eventRoutes.get(
+  "/my/event/impressions",
+  newAuthJWT,
+  EventController.myEventImpressions
+);
+
+eventRoutes.get("/my/impressions", newAuthJWT, EventController.myImpressions);
 // //authenticateJWT,
 // eventRoutes.post('/favorite',authenticateJWT,likeDislike,FavoriteController.store);
 // //authenticateJWT,

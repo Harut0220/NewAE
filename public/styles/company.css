@@ -1794,6 +1794,18 @@ input[type="checkbox"] {
   animation: hideMenu 300ms ease-in-out forwards;
 }
 
+#payList{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid red;
+  border-radius: 20px;
+  width: 200px;
+  height: 300px;
+  overflow-y: auto;
+}
+
 /* ----- keyframes ----- */
 @keyframes showMenu {
   0% {
