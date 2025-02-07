@@ -37,7 +37,7 @@
         <div class="eventMainBody">
           <div class="eventHead">
             <div class="eventHeadFirstPart">
-              <p><a href="/">Главная</a> &gt; <a href="/admin/profile/company/page">Услуги</a>  &gt; <a id="changeNavText">Все Услуги</a></p>
+              <p><a href="/">Главная</a> &gt; <a href="/admin/profile/company/page">Услуги</a>  &gt; <a id="changeNavText">Запись</a></p>
             </div>
             <div id="eventHeadSecondPart" onclick="toggleModal('filter','flex')">
               Фильтр
@@ -62,7 +62,6 @@
                     <th class="td1">Услуга</th>
                     <th class="td1">Имя</th>
                     <th class="td1">Авансовый платеж</th>
-                    <th class="td1">Платеж</th>
                     {{!-- <th class="td1">Ситуация</th> --}}
                     <th class="td1">Дата</th>
                     {{!-- <th class="td1">Место прохождения</th> --}}
@@ -73,15 +72,14 @@
                 </thead>
                 <tbody id="tbody1">
                    {{#if events}}
-                      {{#optionsCompanyArrays events "_id" "companyName" "owner" "startHour" "endHour" "ratingCalculated" "category" "address" "likes" "status" "onlinePay" "services"}}
+                      {{#optionsServicePays events "_id" "user" "service" "registerId" "prepayment" "prepaymentPrice" "payment" "paymentPrice" "date"}}
                          <tr>
-                          <td class="td" {{#if (eq onlinePay 1)}} style="color: #59d815;"{{else if (eq onlinePay 3)}}style="color: red;"{{/if}} >{{getNestedValue category "name"}}</td>
-                          <td class="td" {{#if (eq onlinePay 1)}} style="color: #59d815;"{{else if (eq onlinePay 3)}}style="color: red;"{{/if}}>{{name}}</td>
-                          <td class="td" {{#if (eq onlinePay 1)}} style="color: #59d815;"{{else if (eq onlinePay 3)}}style="color: red;"{{/if}}>{{getNestedValue owner "name" }} {{getNestedValue owner "surname" }} </td>
-                          <td class="td" {{#if (eq onlinePay 1)}} style="color: #59d815;"{{else if (eq onlinePay 3)}}style="color: red;"{{/if}}>{{address}}</td>
-                          <td class="td" {{#if onlinePay}} {{else}}style="color: #59d815;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
+                          <td class="td"  >{{getNestedValue service "type"}}</td>
+                          <td class="td" >{{getNestedValue user "name"}}{{getNestedValue user "surname"}}</td>
+                          <td class="td" >{{prepaymentPrice}} </td>
+                          <td class="td" >{{date}}</td>
                           </tr>
-                      {{/optionsCompanyArrays}}
+                      {{/optionsServicePays}}
                     {{/if}}     
                 </tbody>
               </table>

@@ -20,6 +20,7 @@ import reedRouter from "./routes/reed.js";
 import { dateNow } from "./config/timestamps.js";
 import moment from "moment-timezone";
 import shareRoutes from "./routes/share.js";
+import fs from "fs";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -74,6 +75,16 @@ app.use(reedRouter);
 app.get("/some-route", (req, res) => {
   res.render("someTemplate", { url: process.env.URL });
 });
+app.get('/page/:num/', async function (req, res) {
+  let path = __dirname + '/public/' + req.params.num + '.html';
+
+  try {
+      await fs.promises.access(path, fs.constants.F_OK);
+      res.sendFile(path);
+  } catch (error) {
+      res.status(404).send('not found');
+  }
+});
 
 const lastDate = moment("2025-01-22T10:49:19.299+00:00", "YYYY-MM-DDTHH:mm");
 
@@ -83,6 +94,27 @@ const lastDate = moment("2025-01-22T10:49:19.299+00:00", "YYYY-MM-DDTHH:mm");
 // console.log(difference,"difference");
 // const differenceInHours = Math.round(moment.duration(difference).asHours());
 // console.log(differenceInHours,"differenceInHours");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const start = async () => {
   await connect();

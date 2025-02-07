@@ -76,7 +76,7 @@ async function storeMessage(url = '/admin/profile/notification/feedback/store', 
     body: JSON.stringify(data)
   });
   let d = await response.json()
-  console.log(d)
+  // console.log(d)
   return d;
 }
 

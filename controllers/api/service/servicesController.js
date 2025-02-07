@@ -9,16 +9,73 @@ import schedule from "node-schedule";
 import companyHotDealRegistrations from "../../../models/company/companyHotDealRegistration.js";
 import Notification from "../../../models/Notification.js";
 import User from "../../../models/User.js";
+import ServicePays from "../../../models/company/companyPays.js";
+import companyCategory from "../../../models/company/companyCategory.js";
 const { ObjectId } = mongoose.Types;
 
 const servicesController = {
+  myRegisters: async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.split(" ")[1];
+    const user = jwt.decode(token);
+    const companyCategoryDb = await companyCategory.find();
+    const result = [];
+    for (let i = 0; i < companyCategoryDb.length; i++) {
+      const obj = {};
+      obj._id = companyCategoryDb[i]._id;
+      obj.name = companyCategoryDb[i].name;
+      obj.avatar = companyCategoryDb[i].avatar;
+      const registersDb = await servicesRegistrations.find({
+        user: user.id,
+        category: companyCategoryDb[i]._id,
+      });
+      obj.registers = registersDb;
+      result.push(obj);
+    }
+    const dateNow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+
+    for (let z = 0; z < result.length; z++) {
+      for (let x = 0; x < result[i].registers; x++) {
+        if (!(result[i].registers[x].date > dateNow)) {
+          result[i].registers[x].status = 3;
+        }
+      }
+    }
+
+    res.status(200).send({ message: "success", data: result });
+  },
+  confirmPay: async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader.split(" ")[1];
+      const user = jwt.decode(token);
+      const { id } = req.body;
+      const registerDb = await servicesRegistrations.findById(id);
+      const service = await CompanyServiceModel.findById(
+        registerDb.serviceId.toString()
+      );
+      const prepaymentPrice = (service.cost * 10) / 100;
+      const servicePay = new ServicePays({
+        user: user.id,
+        service: registerDb.serviceId,
+        registerId: id,
+        prepayment: true,
+        prepaymentPrice: prepaymentPrice,
+        paymentPrice: service.cost,
+      });
+
+      await servicePay.save();
+      res.status(200).send({ message: "success", data: servicePay });
+    } catch (error) {
+      console.error(error);
+    }
+  },
   freeTimes: async (req, res) => {
     const { id, date } = req.query;
 
     const serviceDb = await CompanyServiceModel.findById(id);
 
     const companyDb = await companyModel.findById(serviceDb.companyId);
-
 
     const daysFunc = (daysDb) => {
       if (daysDb === "Пн․- Пят․") {
@@ -48,18 +105,18 @@ const servicesController = {
       }
     };
 
-    const dayName = moment.tz(date, "YYYY-MM-DD", process.env.TZ).locale("ru").format("dddd");
-    
+    const dayName = moment
+      .tz(date, "YYYY-MM-DD", process.env.TZ)
+      .locale("ru")
+      .format("dddd");
 
     const workingDays = daysFunc(companyDb.days);
-    
-   const ifTodayWorking= workingDays.includes(dayName);
-    
-   if(!ifTodayWorking){
-      return res.status(200).send({ message: "выходной день",data:[] });
-   }
 
+    const ifTodayWorking = workingDays.includes(dayName);
 
+    if (!ifTodayWorking) {
+      return res.status(200).send({ message: "выходной день", data: [] });
+    }
 
     const startTime = moment.tz(
       `${date} ${companyDb.startHour}`,
@@ -79,7 +136,7 @@ const servicesController = {
     while (currentTime <= endTime) {
       times.push(currentTime.format("YYYY-MM-DD HH:mm"));
       currentTime.add(1, "hour");
-      
+
       if (currentTime.format("HH:mm") === endTime.format("HH:mm")) {
         break;
       }
@@ -108,26 +165,22 @@ const servicesController = {
 
     for (let i = 0; i < times.length; i++) {
       const datTimes = `${date}${times[i].slice(10, 16)}`;
-      
+
       const registerDb = await servicesRegistrations.findOne({
         serviceId: id,
         date: datTimes,
       });
-      
+
       //      date: { $gt: afterDate } // $gt = "greater than"
 
       const sliceDate = times[i].slice(8, 10);
       const sliceDateReq = date.slice(8, 10);
       if (!registerDb && sliceDate === sliceDateReq) {
-        
         freeTimes.push(times[i]);
-        
       } else if (!registerDb && !(sliceDate === sliceDateReq)) {
-
         const dateTimeSliceDay = `${date} ${times[i].slice(11, 16)}`;
 
         arr.push(dateTimeSliceDay);
-        
       }
     }
     for (let j = arr.length - 1; j >= 0; j--) {
@@ -140,15 +193,13 @@ const servicesController = {
     // });
     //,isNight
     const dateNow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
-  
-  let availableTimes = freeTimes;
-    if(dateNow===date){ 
-       availableTimes = freeTimes.filter((time) =>
-        moment.tz(time, "YYYY-MM-DD HH:mm",process.env.TZ).isAfter(dateNow)
+
+    let availableTimes = freeTimes;
+    if (dateNow === date) {
+      availableTimes = freeTimes.filter((time) =>
+        moment.tz(time, "YYYY-MM-DD HH:mm", process.env.TZ).isAfter(dateNow)
       );
     }
-    
-
 
     res.status(200).send({ success: true, data: availableTimes });
   },
@@ -190,7 +241,7 @@ const servicesController = {
       const authHeader = req.headers.authorization;
       const { companyId } = req.params;
       const { day } = req.query;
-      
+
       if (!companyId && !day) {
         res.status(404).send({ message: "companyId & day not found" });
       }
@@ -220,7 +271,7 @@ const servicesController = {
       /////////////////////////////////////////////////////////
       function checkDateStatus(givenDateString) {
         const givenDate = new Date(givenDateString);
-        
+
         if (isNaN(givenDate.getTime())) {
           throw new Error("Invalid date format");
         }
@@ -245,7 +296,6 @@ const servicesController = {
           // const dateToCheck = '2024-08-13';
           // const dateToCheck = '2024-08-12';
           try {
-            
             const status = checkDateStatus(dbResult[i].date);
             if (status === "today") {
               resToday.push(dbResult[i]);
@@ -335,11 +385,11 @@ const servicesController = {
           .populate("user");
         if (text) {
           service.dealDate = date;
-          service.dateSlice=dateSlice;
+          service.dateSlice = dateSlice;
           service.messages.unshift(text);
           await service.save();
         } else {
-          service.dateSlice=dateSlice;
+          service.dateSlice = dateSlice;
 
           service.dealDate = date;
           await service.save();
@@ -444,7 +494,10 @@ const servicesController = {
           path: "user",
           select: "_id name surname avatar phone_number notifCompany",
         })
-        .populate({ path: "serviceId", select: "_id type images cost companyId description serviceRegister" })
+        .populate({
+          path: "serviceId",
+          select: "_id type images cost companyId description serviceRegister",
+        })
         .exec();
       const time = confirmedRegister.date.split(" ")[1];
       const evLink = `alleven://companyDetail/${confirmedRegister.serviceId._id}`;
@@ -479,8 +532,6 @@ const servicesController = {
             })
           );
         }
-
-
       } else {
         const dataNotif = {
           status: 2,
@@ -508,8 +559,6 @@ const servicesController = {
             })
           );
         }
-
-
       }
 
       const dat = confirmedRegister.date;
@@ -521,7 +570,6 @@ const servicesController = {
 
       const currentTime = moment.tz(process.env.TZ).format();
       async function sendMessage(serviceRegisterDbId, type) {
-
         try {
           const registerDb = await servicesRegistrations
             .findById(serviceRegisterDbId)
@@ -560,7 +608,6 @@ const servicesController = {
                 })
               );
             }
-
           }
         } catch (error) {
           console.error("Error in sendMessage:", error);
@@ -602,7 +649,6 @@ const servicesController = {
       //       );
 
       //     } else {
-
 
       //       const dataNotif = {
       //         status: 2,
@@ -657,8 +703,6 @@ const servicesController = {
           }
         }
       );
-
-      
 
       res
         .status(200)
@@ -735,6 +779,7 @@ const servicesController = {
           user: user.id,
           dateSlice,
           dealDate: date,
+          category: companyDb.category._id,
         });
         await Db.save();
 

@@ -3,7 +3,7 @@ const { Schema,model } = mongoose;
 
 const MeetingLikes = new Schema({
   user:{type: Schema.Types.ObjectId, ref: 'User' },
-  meetingId:{ type: Schema.Types.ObjectId, ref: 'Company' },
+  meetingId:{ type: Schema.Types.ObjectId, ref: 'Meeting' },
   date:{type:String,
   required:true}
 }, {

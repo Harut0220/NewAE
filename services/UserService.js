@@ -528,7 +528,7 @@ class UserService {
 
   getCountNotif = async (id) => {
     const usr = await this.find(id);
-    console.log(usr, "usr count notif");
+    // console.log(usr, "usr count notif");
 
     console.log(usr.name, "usr count notif");
 

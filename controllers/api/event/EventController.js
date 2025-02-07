@@ -34,67 +34,166 @@ class EventController {
 
   myImpressions = async (req, res) => {
     const authHeader = req.headers.authorization;
+    console.log(authHeader, "authHeader");
+
     const token = authHeader.split(" ")[1];
     const user = jwt.decode(token);
     const impressionImages = await EventImpressionImages.find({
-      user: user._id,
+      user: user.id,
     }).populate({
       path: "event",
-      select: "_id name images address date",
+      select:
+        "_id name images address likes favorites ratingCalculated views participants started_time",
       populate: { path: "images" },
     });
+
     const resultImpressions = [];
     const resultLike = [];
     const resultFavorite = [];
-    impressionImages.map(async (impression) => {
-      const obj = {};
-      const comments = await EventComment.find({
-        user: user.id,
-        event: impression.event._id,
-      });
-      if (comments.length) {
-        obj.comments = comments;
-      } else {
-        obj.comments = null;
-      }
-      obj.name = impression.event.name;
-      obj.url = impression.event.images[0].name;
-      obj.date = impression.event.date;
-      obj.address = impression.event.address;
+    if (impressionImages.length) {
+      for (let i = 0; i < impressionImages.length; i++) {
+        const impression = impressionImages[i];
+        // impressionImages.map(async (impression) => {
+        const obj = {};
+        const comments = await EventComment.find({
+          user: user.id,
+          event: impression.event._id,
+        });
+        const ifFavorite = await EventFavorites.findOne({
+          user: user.id,
+          eventId: impression.event._id,
+        });
+        obj.isFavorite = false;
+        if (ifFavorite) {
+          obj.isFavorite = true;
+        } else {
+          obj.isFavorite = true;
+        }
+        const ifLike = await EventLike.findOne({
+          user: user.id,
+          eventId: impression.event._id,
+        });
+        obj.isLike = false;
+        if (ifLike) {
+          obj.isLike = true;
+        } else {
+          obj.isLike = false;
+        }
+        if (comments.length) {
+          obj.comments = comments;
+        } else {
+          obj.comments = null;
+        }
+        obj.name = impression.event.name;
+        // obj.url = impression.event.images[0].name;
+        obj.date = impression.event.started_time;
+        obj._id=impression.event._id
+        obj.address = impression.event.address;
+        obj.path = impression.path;
+        obj.likes = impression.event.likes.length;
+        obj.favorites = impression.event.favorites.length;
+        obj.rating = impression.event.ratingCalculated;
+        obj.views = impression.event.views.length;
+        obj.participants = impression.event.participants.length;
 
-      resultImpressions.push(obj);
-    });
+        resultImpressions.push(obj);
+      }
+    }
 
     const likeEvents = await EventLike.find({ user: user.id }).populate({
       path: "eventId",
-      select: "_id name images address date",
+      select:
+        "_id name images address likes favorites ratingCalculated views participants started_time",
       populate: { path: "images" },
     });
-    likeEvents.map(async (like) => {
-      const obj = {};
-      obj.name = like.eventId.name;
-      obj.url = like.eventId.images[0].name;
-      obj.date = like.eventId.date;
-      obj.address = like.eventId.address;
-      resultLike.push(obj);
-    });
+    if (likeEvents.length) {
+      for (let i = 0; i < likeEvents.length; i++) {
+        const like = likeEvents[i];
+        // likeEvents.map(async (like) => {
+        const obj = {};
+        const ifFavorite = await EventFavorites.findOne({
+          user: user.id,
+          eventId: like.eventId._id,
+        });
+        obj.isFavorite = false;
+        if (ifFavorite) {
+          obj.isFavorite = true;
+        } else {
+          obj.isFavorite = true;
+        }
+        const ifLike = await EventLike.findOne({
+          user: user.id,
+          eventId: like.eventId._id,
+        });
+        obj.isLike = false;
+        if (ifLike) {
+          obj.isLike = true;
+        } else {
+          obj.isLike = false;
+        }
+        obj.name = like.eventId.name;
+        obj.url = like.eventId.images[0].name;
+        obj.date = like.eventId.started_time;
+        obj._id=like.eventId._id
+        obj.address = like.eventId.address;
+        obj.likes = like.eventId.likes.length;
+        obj.favorites = like.eventId.favorites.length;
+        obj.rating = like.eventId.ratingCalculated;
+        obj.views = like.eventId.views.length;
+        obj.participants = like.eventId.participants.length;
+
+        resultLike.push(obj);
+      }
+    }
 
     const favoriteEvent = await EventFavorites.find({ user: user.id }).populate(
       {
         path: "eventId",
-        select: "_id name images address date",
+        select:
+          "_id name images address likes favorites ratingCalculated views participants started_time",
         populate: { path: "images" },
       }
     );
+    if (favoriteEvent.length) {
+      for (let i = 0; i < favoriteEvent.length; i++) {
+        const favorite = favoriteEvent[i];
+        // favoriteEvent.map(async (favorite) => {
+        const obj = {};
+        const ifFavorite = await EventFavorites.findOne({
+          user: user.id,
+          eventId: favorite.eventId._id,
+        });
+        obj.isFavorite = false;
+        if (ifFavorite) {
+          obj.isFavorite = true;
+        } else {
+          obj.isFavorite = true;
+        }
+        const ifLike = await EventLike.findOne({
+          user: user.id,
+          eventId: favorite.eventId._id,
+        });
+        obj.isLike = false;
+        if (ifLike) {
+          obj.isLike = true;
+        } else {
+          obj.isLike = false;
+        }
+        obj.name = favorite.eventId.name;
+        obj.url = favorite.eventId.images[0].name;
+        obj.date = favorite.eventId.started_time;
+        obj._id=favorite.eventId._id
 
-    favoriteEvent.map(async (favorite) => {
-      const obj = {};
-      obj.name = favorite.eventId.name;
-      obj.url = favorite.eventId.images[0].name;
-      obj.date = favorite.eventId.date;
-      obj.address = favorite.eventId.address;
-      resultFavorite.push(obj);
-    });
+        obj.address = favorite.eventId.address;
+        obj.likes = favorite.eventId.likes.length;
+        obj.favorites = favorite.eventId.favorites.length;
+        obj.rating = favorite.eventId.ratingCalculated;
+        obj.views = favorite.eventId.views.length;
+        obj.participants = favorite.eventId.participants.length;
+
+        resultFavorite.push(obj);
+      }
+    }
 
     res.status(200).send({
       message: "success",
@@ -103,7 +202,6 @@ class EventController {
       favorites: resultFavorite,
     });
   };
-
 
   myEventImpressions = async (req, res) => {
     const authHeader = req.headers.authorization;

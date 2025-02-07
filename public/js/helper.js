@@ -53,7 +53,7 @@ function conntDateToHM(isoTime) {
 
 function appendDiv(id, data, ap = "afterbegin", clean = null) {
   let d = document.getElementById(id);
-  console.log(d,"d", data,"data", ap,"ap", clean," clean");
+  // console.log(d,"d", data,"data", ap,"ap", clean," clean");
   
   if (clean) {
     d.innerHTML = "";

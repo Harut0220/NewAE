@@ -17,6 +17,8 @@ serviceRouter.get("/near/:id", isEmpParamObjId, servicesController.near);
 
 serviceRouter.delete("/delete/register", servicesController.deleteRegistr);
 
+serviceRouter.post("/confirm/pay", servicesController.confirmPay);
+
 // serviceRouter.post("/edite",servicesController.editeService)
 
 serviceRouter.get(
@@ -25,7 +27,7 @@ serviceRouter.get(
   servicesController.registers
 );
 
-serviceRouter.get("/my_registers");
+serviceRouter.get("/my/registers",servicesController.myRegisters);
 
 serviceRouter.post("/edit", servicesController.edite);
 

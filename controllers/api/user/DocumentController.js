@@ -42,6 +42,7 @@ class DocumentController {
         }
       }
     }
+    
     return res.json({ status: "success", data: dataRes });
   };
 

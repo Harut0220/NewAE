@@ -25,6 +25,7 @@ import companyCommentAnswer from "../../../models/company/companyCommentAnswer.j
 import companyHotDeals from "../../../models/company/companyHotDeals.js";
 import companyPhones from "../../../models/company/companyPhones.js";
 import ImpressionsCompany from "../../../models/ImpressionsCompany.js";
+import companyPays from "../../../models/company/companyPays.js";
 
 const companyController = {
   pays: async (req, res) => {
@@ -57,7 +58,10 @@ const companyController = {
       //   comments: comments,
       // });
       const { id } = req.params;
-      const enents = await companyModel.findById(id);
+      const enents = await companyPays
+        .findById(id)
+        .populate("user")
+        .populate("service");
       res.render("profile/company-pays", {
         layout: "profile",
         title: "Company Pays",
@@ -76,92 +80,263 @@ const companyController = {
 
     const likes = await companyLikes.find({ user: user.id }).populate({
       path: "companyId",
-      select: "_id companyName address images",
-      populate: { path: "images" },
+      select:
+        "_id companyName address images likes favorites ratingCalculated view services category",
+      populate: { path: "images category" },
     });
     const likeResult = [];
     const favoritesResult = [];
     const impressionResult = [];
-    likes.map(async (like) => {
-      const obj = {};
-      const rating = await companyRating.findOne({
-        user: user.id,
-        companyId: like.companyId._id,
-      });
-      // const comments=await companyComment.find({user:user.id,companyId:like.companyId._id})
-      obj.companyName = like.companyId.companyName;
-      obj.address = like.companyId.address;
-      if (rating) {
-        obj.rating = rating.rating;
-      } else {
-        obj.rating = null;
+    if (likes.length) {
+      for (let i = 0; i < likes.length; i++) {
+        const like = likes[i];
+        const obj = {};
+        const rating = await companyRating.findOne({
+          user: user.id,
+          companyId: like.companyId._id,
+        });
+        // const comments=await companyComment.find({user:user.id,companyId:like.companyId._id})
+        const ifFavorit = await companyFavorit.findOne({
+          user: user.id,
+          companyId: like.companyId._id,
+        });
+        obj.isFavorite = false;
+
+        if (ifFavorit) {
+          obj.isFavorite = true;
+        } else {
+          obj.isFavorite = false;
+        }
+
+        const ifLike = await companyLikes.findOne({
+          user: user.id,
+          companyId: like.companyId._id,
+        });
+        obj.isLike = false;
+
+        if (ifLike) {
+          obj.isLike = true;
+        } else {
+          obj.isLike = false;
+        }
+
+        obj.name = like.companyId.companyName;
+        obj.address = like.companyId.address;
+        if (rating) {
+          obj.rating = rating.rating;
+        } else {
+          obj.rating = null;
+        }
+        // if(comments.length){
+        //   obj.comments=comments
+        // }else{
+        //   obj.comments=null
+        // }
+        obj._id = like.companyId._id;
+        obj.url = like.companyId.images[0].name;
+        obj.likes = like.companyId.likes.length;
+        obj.favorites = like.companyId.favorites.length;
+        obj.rating = like.companyId.ratingCalculated;
+        obj.views = like.companyId.view.length;
+        let count = 0;
+        let regLatests = [];
+        for (let z = 0; z < like.companyId.services.length; z++) {
+          const service = like.companyId.services[z];
+          const registers = await servicesRegistrations.find({
+            serviceId: service,
+          });
+          count = count + registers.length;
+          const latestRegistration = await servicesRegistrations
+            .findOne({ user: user.id, serviceId: service })
+            .sort({ createdAt: -1 }); // Sort by createdAt in descending order
+          if (latestRegistration) {
+            regLatests.push(latestRegistration);
+          }
+        }
+        obj.date = null;
+        if (regLatests.length) {
+          regLatests.sort((a, b) => new Date(b.date) - new Date(a.date));
+          obj.date = regLatests[0].date;
+        }
+
+        obj.participants = count;
+        obj.category = like.companyId.category.name;
+
+        likeResult.push(obj);
       }
-      // if(comments.length){
-      //   obj.comments=comments
-      // }else{
-      //   obj.comments=null
-      // }
-      obj.url = like.companyId.images[0].name;
-      likeResult.push(obj);
-    });
+    }
 
     const favorites = await companyFavorit.find({ user: user.id }).populate({
       path: "companyId",
-      select: "_id companyName address images",
-      populate: { path: "images" },
+      select:
+        "_id companyName address images likes favorites ratingCalculated view services category",
+      populate: { path: "images category" },
     });
+    if (favorites.length) {
+      for (let i = 0; i < favorites.length; i++) {
+        const favorite = favorites[i];
+        const obj = {};
+        const rating = await companyRating.findOne({
+          user: user.id,
+          companyId: favorite.companyId._id,
+        });
+        const ifFavorit = await companyFavorit.findOne({
+          user: user.id,
+          companyId: favorite.companyId._id,
+        });
+        obj.isFavorite = false;
 
-    favorites.map(async (favorite) => {
-      const obj = {};
-      const rating = await companyRating.findOne({
-        user: user.id,
-        companyId: favorite.companyId._id,
-      });
-      obj.companyName = favorite.companyId.companyName;
-      obj.address = favorite.companyId.address;
-      if (rating) {
-        obj.rating = rating.rating;
-      } else {
-        obj.rating = null;
+        if (ifFavorit) {
+          obj.isFavorite = true;
+        } else {
+          obj.isFavorite = false;
+        }
+
+        const ifLike = await companyLikes.findOne({
+          user: user.id,
+          companyId: favorite.companyId._id,
+        });
+        obj.isLike = false;
+
+        if (ifLike) {
+          obj.isLike = true;
+        } else {
+          obj.isLike = false;
+        }
+        obj._id = favorite.companyId._id;
+
+        obj.name = favorite.companyId.companyName;
+        obj.address = favorite.companyId.address;
+        if (rating) {
+          obj.rating = rating.rating;
+        } else {
+          obj.rating = null;
+        }
+        let count = 0;
+        let regLatests = [];
+        for (let z = 0; z < favorite.companyId.services.length; z++) {
+          const service = favorite.companyId.services[z];
+          const registers = await servicesRegistrations.find({
+            serviceId: service,
+          });
+          count = count + registers.length;
+          const latestRegistration = await servicesRegistrations
+            .findOne({ user: user.id, serviceId: service })
+            .sort({ createdAt: -1 }); // Sort by createdAt in descending order
+          if (latestRegistration) {
+            regLatests.push(latestRegistration);
+          }
+        }
+        obj.participants = count;
+        obj.url = favorite.companyId.images[0].name;
+        obj.likes = favorite.companyId.likes.length;
+        obj.favorites = favorite.companyId.favorites.length;
+        obj.rating = favorite.companyId.ratingCalculated;
+        obj.views = favorite.companyId.view.length;
+        obj.category = favorite.companyId.category.name;
+        obj.date = null;
+        if (regLatests.length) {
+          regLatests.sort((a, b) => new Date(b.date) - new Date(a.date));
+          obj.date = regLatests[0].date;
+        }
+
+        favoritesResult.push(obj);
       }
-      obj.url = favorite.companyId.images[0].name;
-      favoritesResult.push(obj);
-    });
+    }
 
     const impressions = await companyImpressionImages
       .find({ user: user.id })
       .populate({
         path: "companyId",
-        select: "_id companyName address images",
-        populate: { path: "images" },
+        select:
+          "_id companyName address images likes favorites ratingCalculated view services category",
+        populate: { path: "images category" },
       });
+    if (impressions.length) {
+      for (let i = 0; i < impressions.length; i++) {
+        const impression = impressions[i];
+        const obj = {};
+        const rating = await companyRating.findOne({
+          user: user.id,
+          companyId: impression.companyId._id,
+        });
+        const comments = await companyComment.find({
+          user: user.id,
+          companyId: impression.companyId._id,
+        });
 
-    impressions.map(async (impression) => {
-      const obj = {};
-      const rating = await companyRating.findOne({
-        user: user.id,
-        companyId: impression.companyId._id,
-      });
-      const comments = await companyComment.find({
-        user: user.id,
-        companyId: impression.companyId._id,
-      });
-      obj.companyName = impression.companyId.companyName;
-      obj.address = impression.companyId.address;
-      if (rating) {
-        obj.rating = rating.rating;
-      } else {
-        obj.rating = null;
+        const ifFavorit = await companyFavorit.findOne({
+          user: user.id,
+          companyId: impression.companyId._id,
+        });
+        obj.isFavorite = false;
+
+        if (ifFavorit) {
+          obj.isFavorite = true;
+        } else {
+          obj.isFavorite = false;
+        }
+
+        const ifLike = await companyLikes.findOne({
+          user: user.id,
+          companyId: impression.companyId._id,
+        });
+        obj.isLike = false;
+
+        if (ifLike) {
+          obj.isLike = true;
+        } else {
+          obj.isLike = false;
+        }
+
+        obj._id = impression.companyId._id;
+
+        obj.name = impression.companyId.companyName;
+        obj.address = impression.companyId.address;
+        if (rating) {
+          obj.rating = rating.rating;
+        } else {
+          obj.rating = null;
+        }
+        if (comments.length) {
+          obj.comments = comments;
+        } else {
+          obj.comments = null;
+        }
+        obj.url = impression.companyId.images[0].name;
+        obj.path = impression.path;
+        obj.likes = impression.companyId.likes.length;
+        obj.favorites = impression.companyId.favorites.length;
+        obj.rating = impression.companyId.ratingCalculated;
+        obj.views = impression.companyId.view.length;
+
+        let count = 0;
+        let regLatests = [];
+        for (let z = 0; z < impression.companyId.services.length; z++) {
+          const service = impression.companyId.services[z];
+          const registers = await servicesRegistrations.find({
+            serviceId: service,
+          });
+          count = count + registers.length;
+          const latestRegistration = await servicesRegistrations
+            .findOne({ user: user.id, serviceId: service })
+            .sort({ createdAt: -1 }); // Sort by createdAt in descending order
+          if (latestRegistration) {
+            regLatests.push(latestRegistration);
+          }
+        }
+        obj.participants = count;
+        obj.category = impression.companyId.category.name;
+        obj.date = null;
+        if (regLatests.length) {
+          regLatests.sort((a, b) => new Date(b.date) - new Date(a.date));
+          obj.date = regLatests[0].date;
+        }
+        // obj.participants=impression.companyId.participants.length
+
+        impressionResult.push(obj);
       }
-      if (comments.length) {
-        obj.comments = comments;
-      } else {
-        obj.comments = null;
-      }
-      obj.url = impression.companyId.images[0].name;
-      obj.images = impression.path;
-      impressionResult.push(obj);
-    });
+    }
 
     res.status(200).send({
       message: "success",
@@ -177,13 +352,14 @@ const companyController = {
     const company = await Company.findOne({ owner: user.id }).populate(
       "images"
     );
-    if(company){
-      const impressions = await ImpressionsCompany.find({ company: company._id });
+    if (company) {
+      const impressions = await ImpressionsCompany.find({
+        company: company._id,
+      });
       res.status(200).send({ message: "success", impressions });
-    }else{
+    } else {
       res.status(200).send({ message: "success", impressions: [] });
     }
-
   },
   myparticipant: async (req, res) => {
     try {
@@ -651,7 +827,9 @@ const companyController = {
     });
     const date = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
     const userDb = await User.findById(user.id);
-    const companyDb = await Company.findById(id).populate("images").populate("category");
+    const companyDb = await Company.findById(id)
+      .populate("images")
+      .populate("category");
     if (ifImpressions) {
       for (let i = 0; i < path.length; i++) {
         await ImpressionsCompany.findByIdAndUpdate(ifImpressions._id, {
@@ -1112,11 +1290,13 @@ const companyController = {
       });
       const date = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
       const userDb = await User.findById(user.id);
-      const companyDb = await Company.findById(id).populate("images").populate("category");
+      const companyDb = await Company.findById(id)
+        .populate("images")
+        .populate("category");
       if (ifImpressions) {
         await ImpressionsCompany.findByIdAndUpdate(ifImpressions._id, {
           // $set: { rating },
-          $set: { date,rating },
+          $set: { date, rating },
         });
       } else {
         const companyImpression = new ImpressionsCompany({
@@ -1517,7 +1697,9 @@ const companyController = {
           .populate({ path: "user", select: "name surname avatar" });
 
         const userDb = await User.findById(user.id);
-        const companyDb = await Company.findById(companyId).populate("images").populate("category");
+        const companyDb = await Company.findById(companyId)
+          .populate("images")
+          .populate("category");
         const ifImpressions = await ImpressionsCompany.findOne({
           company: companyId,
           user: user.id,

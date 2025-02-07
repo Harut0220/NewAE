@@ -31,6 +31,7 @@ import meetingView from "../models/meeting/meetingView.js";
 import companyModel from "../models/company/companyModel.js";
 import meetingImpressionImage from "../models/meeting/meetingImpressionImage.js";
 import ImpressionsMeeting from "../models/ImpressionsMeeting.js";
+import AnswerLikes from "../models/meeting/meetingCommentAnswerLike.js";
 
 const meetingService = {
   myParticipant: async (user) => {
@@ -296,23 +297,23 @@ const meetingService = {
           ],
         })
         .exec();
-      for (let i = 0; i < meetings.length; i++) {
-        const isRating = await meetingRating.findOne({
-          meetingId: meetings[i]._id,
-          user: user,
-        });
-        meetings[i].isRating = isRating ? true : false;
-        const findLike = await meetingLikes.findOne({
-          meetingId: meetings[i]._id,
-          user: user,
-        });
-        meetings[i].isLike = findLike ? true : false;
-        const findFavorite = await meetingFavorit.findOne({
-          meetingId: meetings[i]._id,
-          user: user,
-        });
-        meetings[i].isFavorite = findFavorite ? true : false;
-      }
+      // for (let i = 0; i < meetings.length; i++) {
+      //   const isRating = await meetingRating.findOne({
+      //     meetingId: meetings[i]._id,
+      //     user: user,
+      //   });
+      //   meetings[i].isRating = isRating ? true : false;
+      //   const findLike = await meetingLikes.findOne({
+      //     meetingId: meetings[i]._id,
+      //     user: user,
+      //   });
+      //   meetings[i].isLike = findLike ? true : false;
+      //   const findFavorite = await meetingFavorit.findOne({
+      //     meetingId: meetings[i]._id,
+      //     user: user,
+      //   });
+      //   meetings[i].isFavorite = findFavorite ? true : false;
+      // }
       function separateUpcomingAndPassed(events) {
         const now = new Date();
         const upcoming = [];
@@ -335,6 +336,7 @@ const meetingService = {
         (event) => event.status === 1
       );
       separatedEvents.upcoming.forEach((meeting) => {
+        
         meeting.kilometr = calculateDistance(
           myLatitude,
           myLongitude,
@@ -344,6 +346,57 @@ const meetingService = {
       });
 
       separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+      for (let i = 0; i < separatedEvents.upcoming.length; i++) {
+        const element = separatedEvents.upcoming[i];
+
+        const timeMoscow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+        const eventTime = new Date(element.date);
+        const dateNow = new Date(timeMoscow);
+
+        const timeDifference = eventTime - dateNow;
+
+        const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
+
+        if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
+          element.hour = true;
+        }
+
+        const findParticipant = await MeetingParticipants.findOne({
+          meetingId: element._id,
+          user,
+        });
+        if (findParticipant) {
+          console.log("findParticipant 2", findParticipant);
+
+          element.joinStatus = 2;
+        }
+
+        const findParticipantSpot = await meetingParticipantSpot.findOne({
+          meetingId: element._id,
+          user,
+        });
+        if (findParticipantSpot) {
+          console.log("findParticipantSpot 3", findParticipantSpot);
+
+          element.joinStatus = 3;
+        }
+
+        const isRating = await meetingRating.findOne({
+          meetingId: element._id,
+          user,
+        });
+        element.isRating = isRating ? true : false;
+        const findLike = await meetingLikes.findOne({
+          meetingId: element._id,
+          user,
+        });
+        element.isLike = findLike ? true : false;
+        const findFavorite = await meetingFavorit.findOne({
+          meetingId: element._id,
+          user,
+        });
+        element.isFavorite = findFavorite ? true : false;
+      }
       return {
         message: "success",
         upcoming: separatedEvents.upcoming,
@@ -404,7 +457,6 @@ const meetingService = {
           if (
             event.date > moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm")
           ) {
-            // console.log(event,"upcoming");
 
             upcoming.push(event);
           } else {
@@ -414,10 +466,8 @@ const meetingService = {
 
         return { upcoming, passed };
       }
-      // console.log(meetings,"meetings");
 
       const separatedEvents = separateUpcomingAndPassed(meetings);
-      // console.log(separatedEvents,"separatedEvents");
 
       const filter = separatedEvents.passed.filter(
         (event) => event.status === 1
@@ -432,6 +482,20 @@ const meetingService = {
       });
 
       separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+      for (let i = 0; i < separatedEvents.upcoming.length; i++) {
+        const element = separatedEvents.upcoming[i];
+        const timeMoscow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+        const eventTime = new Date(element.date);
+        const dateNow = new Date(timeMoscow);
+
+        const timeDifference = eventTime - dateNow;
+
+        const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
+
+        if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
+          element.hour = true;
+        }
+      }
       return {
         message: "success",
         upcoming: separatedEvents.upcoming,
@@ -519,6 +583,22 @@ const meetingService = {
       });
 
       separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+      for (let i = 0; i < separatedEvents.upcoming.length; i++) {
+        const element = separatedEvents.upcoming[i];
+
+        const timeMoscow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+        const eventTime = new Date(element.date);
+        const dateNow = new Date(timeMoscow);
+
+        const timeDifference = eventTime - dateNow;
+
+        const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
+
+        if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
+          element.hour = true;
+        }
+        
+      }
       return {
         message: "success",
         upcoming: separatedEvents.upcoming,
@@ -577,23 +657,23 @@ const meetingService = {
           ],
         })
         .exec();
-      for (let i = 0; i < meetings.length; i++) {
-        const isRating = await meetingRating.findOne({
-          meetingId: meetings[i]._id,
-          user: user,
-        });
-        meetings[i].isRating = isRating ? true : false;
-        const findLike = await meetingLikes.findOne({
-          meetingId: meetings[i]._id,
-          user: user.id,
-        });
-        meetings[i].isLike = findLike ? true : false;
-        const findFavorite = await meetingFavorit.findOne({
-          meetingId: meetings[i]._id,
-          user: user.id,
-        });
-        meetings[i].isFavorite = findFavorite ? true : false;
-      }
+      // for (let i = 0; i < meetings.length; i++) {
+      //   const isRating = await meetingRating.findOne({
+      //     meetingId: meetings[i]._id,
+      //     user: user,
+      //   });
+      //   meetings[i].isRating = isRating ? true : false;
+      //   const findLike = await meetingLikes.findOne({
+      //     meetingId: meetings[i]._id,
+      //     user: user.id,
+      //   });
+      //   meetings[i].isLike = findLike ? true : false;
+      //   const findFavorite = await meetingFavorit.findOne({
+      //     meetingId: meetings[i]._id,
+      //     user: user.id,
+      //   });
+      //   meetings[i].isFavorite = findFavorite ? true : false;
+      // }
       function separateUpcomingAndPassed(events) {
         const upcoming = [];
         const passed = [];
@@ -624,6 +704,60 @@ const meetingService = {
       });
 
       separatedEvents.upcoming.sort((a, b) => a.kilometr - b.kilometr);
+
+      for (let i = 0; i < separatedEvents.upcoming.length; i++) {
+        const element = separatedEvents.upcoming[i];
+
+        const timeMoscow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+        const eventTime = new Date(element.date);
+        const dateNow = new Date(timeMoscow);
+
+        const timeDifference = eventTime - dateNow;
+
+        const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
+
+        if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
+          element.hour = true;
+        }
+
+        const findParticipant = await MeetingParticipants.findOne({
+          meetingId: element._id,
+          user: user.id,
+        });
+        console.log("findParticipant 1", findParticipant);
+        if (findParticipant) {
+          console.log("findParticipant 2", findParticipant);
+
+          element.joinStatus = 2;
+        }
+
+        const findParticipantSpot = await meetingParticipantSpot.findOne({
+          meetingId: element._id,
+          user: user.id,
+        });
+        console.log("findParticipantSpot 1", findParticipantSpot);
+
+        if (findParticipantSpot) {
+          console.log("findParticipant 3", findParticipant);
+
+          element.joinStatus = 3;
+        }
+        const isRating = await meetingRating.findOne({
+          meetingId: element._id,
+          user: user.id,
+        });
+        element.isRating = isRating ? true : false;
+        const findLike = await meetingLikes.findOne({
+          meetingId: element._id,
+          user: user.id,
+        });
+        element.isLike = findLike ? true : false;
+        const findFavorite = await meetingFavorit.findOne({
+          meetingId: element._id,
+          user: user.id,
+        });
+        element.isFavorite = findFavorite ? true : false;
+      }
       return {
         message: "success",
         upcoming: separatedEvents.upcoming,
@@ -722,7 +856,7 @@ const meetingService = {
       if (ifImpressions) {
         await ImpressionsMeeting.findByIdAndUpdate(ifImpressions._id, {
           // $set: { rating },
-          $set: { date: dateTime,rating },
+          $set: { date: dateTime, rating },
         });
       } else {
         const meetingImpression = new ImpressionsMeeting({
@@ -772,12 +906,13 @@ const meetingService = {
       date,
     });
     await commentAnswerDb.save();
+    const answerDb=await meetingCommentAnswer.findById(commentAnswerDb._id).populate('user')
     const commentDb = await meetingComment.findByIdAndUpdate(
       commentId,
       { $push: { answer: commentAnswerDb._id } },
       { new: true }
     );
-    return { message: "Комментарий добавлен", answer: commentAnswerDb };
+    return { message: "Комментарий добавлен", answer: answerDb };
   },
   participantSpot: async (user, meetingId) => {
     const resIf = await meetingParticipant.find({ user, meetingId });
@@ -870,23 +1005,46 @@ const meetingService = {
         ],
       })
       .exec();
-    for (let i = 0; i < resultChanged1.length; i++) {
       const isRating = await meetingRating.findOne({
-        meetingId: resultChanged1[i]._id,
+        meetingId: resultChanged1._id,
         user: user,
       });
-      resultChanged1[i].isRating = isRating ? true : false;
+      resultChanged1.isRating = isRating ? true : false;
       const findLike = await meetingLikes.findOne({
-        meetingId: resultChanged1[i]._id,
+        meetingId: resultChanged1._id,
         user: user,
       });
-      resultChanged1[i].isLike = findLike ? true : false;
+      resultChanged1.isLike = findLike ? true : false;
       const findFavorite = await meetingFavorit.findOne({
-        meetingId: resultChanged1[i]._id,
+        meetingId: resultChanged1._id,
         user: user,
       });
-      resultChanged1[i].isFavorite = findFavorite ? true : false;
-    }
+      resultChanged1.isFavorite = findFavorite ? true : false;
+    
+      for (let i = 0; i < resultChanged1.comments.length; i++) {
+        
+        const findCommentLike = await meetingCommentLikes.findOne({
+          commentId: resultChanged1.comments[i]._id,
+          user: user,
+        });
+        for (let z = 0; z < resultChanged1.comments[i].answer.length; z++) {
+          const findAnswerLike = await AnswerLikes.findOne({
+            answerId: resultChanged1.comments[i].answer[z]._id,
+            user: user,
+          });
+          if (findAnswerLike) {
+            resultChanged1.comments[i].answer[z].isLike = true;
+          }
+        }
+        
+        if (findCommentLike) {
+          
+          resultChanged1.comments[i].isLike = true;
+        }
+      }
+
+
+
     return resultChanged1;
   },
   myMeeting: async (authHeader) => {
@@ -1587,6 +1745,7 @@ const meetingService = {
       const likeDb = new meetingCommentLikes({
         user,
         commentId,
+        date: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
       });
       const like = await likeDb.save();
       const commentDb = await meetingComment.findByIdAndUpdate(
@@ -1661,7 +1820,7 @@ const meetingService = {
         date: moment.tz(process.env.TZ).format(),
       });
       await commentDb.save();
-
+      const commDb=await meetingComment.findById(commentDb._id).populate('user')
       const meetingUpdate = await meetingModel.findByIdAndUpdate(meetingId, {
         $push: { comments: commentDb._id },
       });
@@ -1697,7 +1856,7 @@ const meetingService = {
         await meetingImpression.save();
       }
 
-      return { message: "Comment added successfully", comment: commentDb };
+      return { message: "Comment added successfully", comment: commDb };
     } catch (error) {
       console.error(error);
     }
@@ -1889,6 +2048,7 @@ const meetingService = {
         resultChanged1.isFavorite = findFavorite ? true : false;
 
         for (let i = 0; i < resultChanged1.comments.length; i++) {
+          
           const findCommentLike = await meetingCommentLikes.findOne({
             commentId: resultChanged1.comments[i]._id,
             user: user,
@@ -1902,12 +2062,13 @@ const meetingService = {
               resultChanged1.comments[i].answer[z].isLike = true;
             }
           }
+          
           if (findCommentLike) {
+            
             resultChanged1.comments[i].isLike = true;
           }
         }
 
-        // }
       } else {
         // let resultChanged1;
         const resDb = await meetingModel
@@ -1965,7 +2126,18 @@ const meetingService = {
           })
           .exec();
       }
-      return { message: "success", meeting: resultChanged1 };
+      const timeMoscow = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm");
+      const eventTime = new Date(resultChanged1.date);
+      const dateNow = new Date(timeMoscow);
+
+      const timeDifference = eventTime - dateNow;
+
+      const differenceInMinutes = timeDifference / 60000; // 60000 ms in one minute
+
+      if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
+        resultChanged1.hour = true;
+      }
+      return { message: "success", data: resultChanged1 };
     } catch (error) {
       console.error(error);
     }
@@ -2004,7 +2176,7 @@ const meetingService = {
           user: meetingDb.user.toString(),
           type: "meeting_participant",
           message: `Пользователь ${userDb.name} ${userDb.surname} присоединился к встрече ${meetingDb.name}.`,
-          service: registerDb.serviceId._id,
+          meeting: meetingDb._id,
           categoryIcon: meetingDb.images[0].path,
           link: evLink,
         };

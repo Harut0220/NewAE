@@ -98,6 +98,28 @@ const h = {
         return options.fn({ id, name, owner, startHour,endHour,rating,category,address,likes,status,onlinePay,services  });
     }).join('');
   }, 
+
+
+  optionsServicePays: (array, valueKey, userKey,serviceKey,registerKey,prepaymentKey,prepaymentPriceKey,paymentKey,paymentPriceKey,dateKey, options) => {
+    if (!Array.isArray(array)) {
+        return '';
+    }
+  
+    // Generate <option> elements
+    return array.map(item => {
+        const id = item[valueKey];
+        const user = item[userKey];
+        const service=item[serviceKey]
+        const register=item[registerKey]
+        const prepayment=item[prepaymentKey]
+        const prepaymentPrice=item[prepaymentPriceKey]
+        const payment=item[paymentKey]
+        const paymentPrice=item[paymentPriceKey]
+        const date=item[dateKey]
+
+        return options.fn({ id, user, service, register,prepayment,prepaymentPrice,payment,paymentPrice,date  });
+    }).join('');
+  },
   
   getServicesArrays: (array, typeKey, options) => {
     return array.map(item => {

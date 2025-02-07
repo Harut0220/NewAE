@@ -14,6 +14,7 @@ import meetingImpressionImage from "../../../models/meeting/meetingImpressionIma
 import meetingLikes from "../../../models/meeting/meetingLikes.js";
 import meetingRating from "../../../models/meeting/meetingRating.js";
 import ImpressionsMeeting from "../../../models/ImpressionsMeeting.js";
+import meetingCommentAnswer from "../../../models/meeting/meetingCommentAnswer.js";
 
 const meetingController = {
   myImpressions: async (req, res) => {
@@ -22,65 +23,126 @@ const meetingController = {
     const user = jwt.decode(token);
     const impressionImages = await meetingImpressionImage
       .find({
-        user: user._id,
+        user: user.id,
       })
       .populate({
         path: "meeting",
-        select: "_id name images address date",
+        select: "_id purpose images address date likes favorites ratingCalculated view participants",
         populate: { path: "images" },
       });
     const resultImpressions = [];
     const resultLike = [];
     const resultFavorite = [];
-    impressionImages.map(async (impression) => {
-      const obj = {};
-      const comments = await meetingComment.find({
-        user: user.id,
-        meetingId: impression.meeting._id,
-      });
-      if (comments.length) {
-        obj.comments = comments;
-      } else {
-        obj.comments = null;
-      }
-      obj.name = impression.meeting.name;
-      obj.url = impression.meeting.images[0].path;
-      obj.date = impression.meeting.date;
-      obj.address = impression.meeting.address;
+    if (impressionImages.length) {
+      for (let i = 0; i < impressionImages.length; i++) {
+        // impressionImages.map(async (impression) => {
+        const obj = {};
+        const comments = await meetingComment.find({
+          user: user.id,
+          meetingId: impressionImages[i].meeting._id,
+        });
+        if (comments.length) {
+          obj.comments = comments;
+        } else {
+          obj.comments = null;
+        }
+        const ifFavorite=await meetingFavorit.findOne({user:user.id,meetingId:impressionImages[i].meeting._id})
+        obj.isFavorite=false
+        if(ifFavorite){
+          obj.isFavorite=true
+        }
+        const ifLike=await meetingLikes.findOne({user:user.id,meetingId:impressionImages[i].meeting._id})
+        obj.isLike=false
+        if(ifLike){
+          obj.isLike=true
+        }
+        obj._id=impressionImages[i].meeting._id
+        obj.name = impressionImages[i].meeting.purpose;
+        obj.url = impressionImages[i].meeting.images[0].path;
+        obj.date = impressionImages[i].meeting.date;
+        obj.address = impressionImages[i].meeting.address;
+        obj.path=impressionImages[i].path
+        obj.likes=impressionImages[i].meeting.likes.length
+        obj.favorites=impressionImages[i].meeting.favorites.length
+        obj.rating=impressionImages[i].meeting.ratingCalculated
+        obj.views=impressionImages[i].meeting.view.length
+        obj.participants=impressionImages[i].meeting.participants.length
 
-      resultImpressions.push(obj);
-    });
+        resultImpressions.push(obj);
+      }
+    }
 
     const likeEvents = await meetingLikes.find({ user: user.id }).populate({
       path: "meetingId",
-      select: "_id name images address date",
+      select: "_id purpose images address date likes favorites ratingCalculated view participants",
       populate: { path: "images" },
     });
-    likeEvents.map(async (like) => {
-      const obj = {};
-      obj.name = like.meetingId.name;
-      obj.url = like.meetingId.images[0].path;
-      obj.date = like.meetingId.date;
-      obj.address = like.meetingId.address;
-      resultLike.push(obj);
-    });
+    console.log(likeEvents, "likeEvents");
+    if (likeEvents.length) {
+      for (let i = 0; i < likeEvents.length; i++) {
+        // likeEvents.map(async (like) => {
+        const obj = {};
+        const ifFavorite=await meetingFavorit.findOne({user:user.id,meetingId:likeEvents[i].meetingId._id})
+        obj.isFavorite=false
+        if(ifFavorite){
+          obj.isFavorite=true
+        }
+        const ifLike=await meetingLikes.findOne({user:user.id,meetingId:likeEvents[i].meetingId._id})
+        obj.isLike=false
+        if(ifLike){
+          obj.isLike=true
+        }
+        obj._id=likeEvents[i].meetingId._id
+        obj.name = likeEvents[i].meetingId.purpose;
+        obj.url = likeEvents[i].meetingId.images[0].path;
+        obj.date = likeEvents[i].meetingId.date;
+        obj.address = likeEvents[i].meetingId.address;
+        obj.likes=likeEvents[i].meetingId.likes.length
+        obj.favorites=likeEvents[i].meetingId.favorites.length
+        obj.rating=likeEvents[i].meetingId.ratingCalculated
+        obj.views=likeEvents[i].meetingId.view.length
+        obj.participants=likeEvents[i].meetingId.participants.length
+
+        resultLike.push(obj);
+      }
+    }
 
     const favoriteEvent = await meetingFavorit
       .find({ user: user.id })
       .populate({
         path: "meetingId",
-        select: "_id name images address date",
+        select: "_id purpose images address date likes favorites ratingCalculated view participants",
         populate: { path: "images" },
       });
+    if (favoriteEvent.length) {
+      for (let i = 0; i < favoriteEvent.length; i++) {
+        // favoriteEvent.map(async (favorite) => {
+        const obj = {};
+        const ifFavorite=await meetingFavorit.findOne({user:user.id,meetingId:favoriteEvent[i].meetingId._id})
+        obj.isFavorite=false
+        if(ifFavorite){
+          obj.isFavorite=true
+        }
+        const ifLike=await meetingLikes.findOne({user:user.id,meetingId:favoriteEvent[i].meetingId._id})
+        obj.isLike=false
+        if(ifLike){
+          obj.isLike=true
+        }
+        obj._id=favoriteEvent[i].meetingId._id
+        obj.name = favoriteEvent[i].meetingId.purpose;
+        obj.url = favoriteEvent[i].meetingId.images[0].path;
+        obj.date = favoriteEvent[i].meetingId.date;
+        obj.address = favoriteEvent[i].meetingId.address;
+        obj.likes=favoriteEvent[i].meetingId.likes.length
+        obj.favorites=favoriteEvent[i].meetingId.favorites.length
+        obj.rating=favoriteEvent[i].meetingId.ratingCalculated
+        obj.views=favoriteEvent[i].meetingId.view.length
+        obj.participants=favoriteEvent[i].meetingId.participants.length
 
-    favoriteEvent.map(async (favorite) => {
-      const obj = {};
-      obj.name = favorite.meetingId.name;
-      obj.url = favorite.meetingId.images[0].path;
-      obj.date = favorite.meetingId.date;
-      obj.address = favorite.meetingId.address;
-      resultFavorite.push(obj);
-    });
+
+        resultFavorite.push(obj);
+      }
+    }
 
     res.status(200).send({
       message: "success",
@@ -293,12 +355,12 @@ const meetingController = {
     const authHeader = req.headers.authorization;
     const token = authHeader.split(" ")[1];
     const user = jwt.decode(token);
-    // const user = { id: "656ecb2e923c5a66768f4cd3" };
-    const { answerId, commentId } = req.body;
+    const { id } = req.body;
+    const comment = await meetingCommentAnswer.findById(id);
     const result = await meetingService.commentAnswerLike(
       user.id,
-      answerId,
-      commentId
+      id,
+      comment.commentId
     );
     return res.status(200).send(result);
   },
@@ -320,7 +382,6 @@ const meetingController = {
     const authHeader = req.headers.authorization;
     const token = authHeader.split(" ")[1];
     const user = jwt.decode(token);
-    // const user={id:"656ecb2e923c5a66768f4cd4"}
 
     const { commentId, text } = req.body;
     const result = await meetingService.commentAnswer(user.id, commentId, text);
@@ -330,7 +391,6 @@ const meetingController = {
     const authHeader = req.headers.authorization;
     const token = authHeader.split(" ")[1];
     const user = jwt.decode(token);
-    // const user={id:"656ecb2e923c5a66768f4cd3"}
     const { id } = req.body;
     const result = await meetingService.participantSpot(user.id, id);
     return res.status(200).send(result);
@@ -536,6 +596,8 @@ const meetingController = {
       const user = jwt.decode(token);
 
       const { meetingId, text } = req.body;
+      console.log(meetingId, text, authHeader, " meetingId, text Token");
+
       const result = await meetingService.addComment(user.id, meetingId, text);
 
       res.status(200).send(result);

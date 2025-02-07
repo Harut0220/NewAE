@@ -9,6 +9,7 @@ const servicesRegistrations = new Schema({
     user:{ type: Schema.Types.ObjectId, ref: "User" },
     messages:{type:Array},
     dateSlice:{type:String},
+    category:{type : Schema.Types.ObjectId,ref:"company_category"}
     // time:{type:String,required:true}
 }, {
     timestamps: true // This will add createdAt and updatedAt fields

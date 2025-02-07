@@ -20,7 +20,7 @@ for(let e=0;e<data.eventCategories.length;e++){
     eventCatCol.push(random_rgba())
 }
 
-console.log("data.meetingLength",data.meetingLength);
+// console.log("data.meetingLength",data.meetingLength);
 
 
 const ctx2 = document.getElementById('myChart').getContext('2d');
