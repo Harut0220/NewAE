@@ -72,8 +72,9 @@ class RatingController {
         });
         await eventImpression.save();
       }
-
-      return res.status(200).send({ status: "success", averageRating });
+      const updatetedEvent=await Event.findById(id).select("ratings")
+      const ratings=updatetedEvent.ratings
+      return res.status(200).send({ status: "success",ratings, averageRating });
     } else {
       return res
         .status(404)

@@ -331,7 +331,8 @@ class EventController {
       });
       await eventImpression.save();
     }
-
+    console.log(data,"data");
+    
     return res
       .status(200)
       .send({ updated: result.bool, success: true, data: result.result });
@@ -893,9 +894,9 @@ class EventController {
         });
         await view.save();
         data = await Event.findByIdAndUpdate(
-          { _id: id },
+           id ,
           {
-            $push: { view: view._id },
+            $push: { views: view._id },
             $set: { ratingCalculated: averageRating },
           },
           { new: true }
@@ -1140,29 +1141,7 @@ class EventController {
       if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
         data.hour = true;
       }
-      //  else if (differenceInMinutes <= 0) {
-      //   hour=false
-      // } else {
-      //   hour=false
-      // }
-      // for (let i = 0; i < data.comments.length; i++) {
-      //   for (let z = 0; z < data.comments[i].answer.length; z++) {
-      //     const findLike = await EventCommentAnswerLike.findOne({
-      //       user: user.id,
-      //       answerId: data.comments[i].answer[z]._id,
-      //     });
-      //     if (findLike) {
-      //       data.comments[i].answer[z].isLike = true;
-      //     }
-      //   }
-      //   const findCommentLike = await EventCommentLikes.findOne({
-      //     user: user.id,
-      //     commentId: data.comments[i]._id,
-      //   });
-      //   if (findCommentLike) {
-      //     data.comments[i].isLike = true;
-      //   }
-      // }
+   
       res.status(200).send({ message: "success", data });
     }
   };

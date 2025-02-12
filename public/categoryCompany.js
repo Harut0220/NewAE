@@ -17,19 +17,19 @@ const categoryCompany=[
     },
     {
         name:"Масаж",
-        image:`/companyCategory/Masaj.png`
+        avatar:`/companyCategory/Masaj.png`
     },
     {
         name:"Барбершоп",
-        image:`/companyCategory/Barber.png`
+        avatar:`/companyCategory/Barber.png`
     },
     {
         name:"Химчистка",
-        image:`/companyCategory/Ximchistka.png`
+        avatar:`/companyCategory/Ximchistka.png`
     },
     {
         name:"Груминг",
-        image:`/companyCategory/Gur.png`
+        avatar:`/companyCategory/Gur.png`
     }
 ]
 

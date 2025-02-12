@@ -26,8 +26,54 @@ import companyHotDeals from "../../../models/company/companyHotDeals.js";
 import companyPhones from "../../../models/company/companyPhones.js";
 import ImpressionsCompany from "../../../models/ImpressionsCompany.js";
 import companyPays from "../../../models/company/companyPays.js";
+import commission from "../../../models/commission.js";
 
 const companyController = {
+  priceEdit: async (req, res) => {
+    try {
+      const price = req.body.price;
+
+      const id = req.params.id;
+      const priceDb = await commission.findById(id);
+      if (!price) {
+        res.render("profile/commission", {
+          layout: "profile",
+          title: "Company Pays",
+          user: req.user,
+          event: priceDb,
+        });
+      } else {
+        const priceUpdate = await commission.findByIdAndUpdate(
+          id,
+          { $set: { price } },
+          { new: true }
+        );
+        res.render("profile/commission", {
+          layout: "profile",
+          title: "Company Pays",
+          user: req.user,
+          event: priceUpdate,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({ message: "Server Error" });
+    }
+  },
+  pricePage: async (req, res) => {
+    try {
+      const price = await commission.find();
+      res.render("profile/commission", {
+        layout: "profile",
+        title: "Company Pays",
+        user: req.user,
+        event: price[0],
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({ message: "Server Error" });
+    }
+  },
   pays: async (req, res) => {
     try {
       //   const event = await companyModel
@@ -3119,9 +3165,10 @@ const companyController = {
       //     $gte: new Date(date_from).toISOString(),
       //   };
       // }
-
+      
       const eventCats = await companyCategory.find();
-
+      events.sort((a, b) => moment(a.createdAt).valueOf() - moment(b.createdAt).valueOf());
+      events.reverse()
       res.render("profile/company", {
         layout: "profile",
         title: "Company",

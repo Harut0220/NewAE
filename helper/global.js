@@ -8,6 +8,21 @@ ts.init()
 ts.separator = ";"
 
 const h = {
+  participantsArray:(array, userKey,options)=> {
+    // const urlPoint = options.hash.urlPoint;  // Get urlPoint from options
+    // let out = '';
+    // const linkArray=urlPoint.split(":/").join("://")
+   
+    
+
+   return array.map(item => {
+        const user = item[userKey];
+    console.log(user,"user");
+    
+ 
+        return options.fn({ user});
+    }).join('');
+},
   and: (a, b) =>{
     return a && b;
   },

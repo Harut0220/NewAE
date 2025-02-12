@@ -74,7 +74,7 @@
                 </thead>
                 <tbody id="tbody1">
                    {{#if events}}
-                      {{#optionsCompanyArrays events "_id" "companyName" "owner" "startHour" "endHour" "rating" "category" "address" "likes" "status" "onlinePay" "services"}}
+                      {{#optionsCompanyArrays events "_id" "companyName" "owner" "startHour" "endHour" "rating" "category" "address" "ratingCalculated" "status" "onlinePay" "services"}}
                          <tr>
                           <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}>
                               <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{id}}">
@@ -94,7 +94,7 @@
                           {{!-- <td class="td">{{lng situation "ru"}}</td> --}}
                           {{!-- <td class="td">{{startHour}}-{{endHour}}</td> --}}
                           <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{address}}</td>
-                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
+                          <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes}}</td>
                           <td class="td" {{#if (eq status 0)}} style="color: #59d815;"{{/if}} style="text-align:center;">
                             {{#if (notEq status 3) }}
                               <a href="/admin/profile/company/single/{{id}}" style="display: flex;align-items: center;justify-content: center;">

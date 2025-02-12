@@ -27,7 +27,8 @@ const meetingController = {
       })
       .populate({
         path: "meeting",
-        select: "_id purpose images address date likes favorites ratingCalculated view participants",
+        select:
+          "_id purpose images address date likes favorites ratingCalculated view participants",
         populate: { path: "images" },
       });
     const resultImpressions = [];
@@ -46,27 +47,33 @@ const meetingController = {
         } else {
           obj.comments = null;
         }
-        const ifFavorite=await meetingFavorit.findOne({user:user.id,meetingId:impressionImages[i].meeting._id})
-        obj.isFavorite=false
-        if(ifFavorite){
-          obj.isFavorite=true
+        const ifFavorite = await meetingFavorit.findOne({
+          user: user.id,
+          meetingId: impressionImages[i].meeting._id,
+        });
+        obj.isFavorite = false;
+        if (ifFavorite) {
+          obj.isFavorite = true;
         }
-        const ifLike=await meetingLikes.findOne({user:user.id,meetingId:impressionImages[i].meeting._id})
-        obj.isLike=false
-        if(ifLike){
-          obj.isLike=true
+        const ifLike = await meetingLikes.findOne({
+          user: user.id,
+          meetingId: impressionImages[i].meeting._id,
+        });
+        obj.isLike = false;
+        if (ifLike) {
+          obj.isLike = true;
         }
-        obj._id=impressionImages[i].meeting._id
+        obj._id = impressionImages[i].meeting._id;
         obj.name = impressionImages[i].meeting.purpose;
         obj.url = impressionImages[i].meeting.images[0].path;
         obj.date = impressionImages[i].meeting.date;
         obj.address = impressionImages[i].meeting.address;
-        obj.path=impressionImages[i].path
-        obj.likes=impressionImages[i].meeting.likes.length
-        obj.favorites=impressionImages[i].meeting.favorites.length
-        obj.rating=impressionImages[i].meeting.ratingCalculated
-        obj.views=impressionImages[i].meeting.view.length
-        obj.participants=impressionImages[i].meeting.participants.length
+        obj.path = impressionImages[i].path;
+        obj.likes = impressionImages[i].meeting.likes.length;
+        obj.favorites = impressionImages[i].meeting.favorites.length;
+        obj.rating = impressionImages[i].meeting.ratingCalculated;
+        obj.views = impressionImages[i].meeting.view.length;
+        obj.participants = impressionImages[i].meeting.participants.length;
 
         resultImpressions.push(obj);
       }
@@ -74,7 +81,8 @@ const meetingController = {
 
     const likeEvents = await meetingLikes.find({ user: user.id }).populate({
       path: "meetingId",
-      select: "_id purpose images address date likes favorites ratingCalculated view participants",
+      select:
+        "_id purpose images address date likes favorites ratingCalculated view participants",
       populate: { path: "images" },
     });
     console.log(likeEvents, "likeEvents");
@@ -82,26 +90,32 @@ const meetingController = {
       for (let i = 0; i < likeEvents.length; i++) {
         // likeEvents.map(async (like) => {
         const obj = {};
-        const ifFavorite=await meetingFavorit.findOne({user:user.id,meetingId:likeEvents[i].meetingId._id})
-        obj.isFavorite=false
-        if(ifFavorite){
-          obj.isFavorite=true
+        const ifFavorite = await meetingFavorit.findOne({
+          user: user.id,
+          meetingId: likeEvents[i].meetingId._id,
+        });
+        obj.isFavorite = false;
+        if (ifFavorite) {
+          obj.isFavorite = true;
         }
-        const ifLike=await meetingLikes.findOne({user:user.id,meetingId:likeEvents[i].meetingId._id})
-        obj.isLike=false
-        if(ifLike){
-          obj.isLike=true
+        const ifLike = await meetingLikes.findOne({
+          user: user.id,
+          meetingId: likeEvents[i].meetingId._id,
+        });
+        obj.isLike = false;
+        if (ifLike) {
+          obj.isLike = true;
         }
-        obj._id=likeEvents[i].meetingId._id
+        obj._id = likeEvents[i].meetingId._id;
         obj.name = likeEvents[i].meetingId.purpose;
         obj.url = likeEvents[i].meetingId.images[0].path;
         obj.date = likeEvents[i].meetingId.date;
         obj.address = likeEvents[i].meetingId.address;
-        obj.likes=likeEvents[i].meetingId.likes.length
-        obj.favorites=likeEvents[i].meetingId.favorites.length
-        obj.rating=likeEvents[i].meetingId.ratingCalculated
-        obj.views=likeEvents[i].meetingId.view.length
-        obj.participants=likeEvents[i].meetingId.participants.length
+        obj.likes = likeEvents[i].meetingId.likes.length;
+        obj.favorites = likeEvents[i].meetingId.favorites.length;
+        obj.rating = likeEvents[i].meetingId.ratingCalculated;
+        obj.views = likeEvents[i].meetingId.view.length;
+        obj.participants = likeEvents[i].meetingId.participants.length;
 
         resultLike.push(obj);
       }
@@ -111,34 +125,40 @@ const meetingController = {
       .find({ user: user.id })
       .populate({
         path: "meetingId",
-        select: "_id purpose images address date likes favorites ratingCalculated view participants",
+        select:
+          "_id purpose images address date likes favorites ratingCalculated view participants",
         populate: { path: "images" },
       });
     if (favoriteEvent.length) {
       for (let i = 0; i < favoriteEvent.length; i++) {
         // favoriteEvent.map(async (favorite) => {
         const obj = {};
-        const ifFavorite=await meetingFavorit.findOne({user:user.id,meetingId:favoriteEvent[i].meetingId._id})
-        obj.isFavorite=false
-        if(ifFavorite){
-          obj.isFavorite=true
+        const ifFavorite = await meetingFavorit.findOne({
+          user: user.id,
+          meetingId: favoriteEvent[i].meetingId._id,
+        });
+        obj.isFavorite = false;
+        if (ifFavorite) {
+          obj.isFavorite = true;
         }
-        const ifLike=await meetingLikes.findOne({user:user.id,meetingId:favoriteEvent[i].meetingId._id})
-        obj.isLike=false
-        if(ifLike){
-          obj.isLike=true
+        const ifLike = await meetingLikes.findOne({
+          user: user.id,
+          meetingId: favoriteEvent[i].meetingId._id,
+        });
+        obj.isLike = false;
+        if (ifLike) {
+          obj.isLike = true;
         }
-        obj._id=favoriteEvent[i].meetingId._id
+        obj._id = favoriteEvent[i].meetingId._id;
         obj.name = favoriteEvent[i].meetingId.purpose;
         obj.url = favoriteEvent[i].meetingId.images[0].path;
         obj.date = favoriteEvent[i].meetingId.date;
         obj.address = favoriteEvent[i].meetingId.address;
-        obj.likes=favoriteEvent[i].meetingId.likes.length
-        obj.favorites=favoriteEvent[i].meetingId.favorites.length
-        obj.rating=favoriteEvent[i].meetingId.ratingCalculated
-        obj.views=favoriteEvent[i].meetingId.view.length
-        obj.participants=favoriteEvent[i].meetingId.participants.length
-
+        obj.likes = favoriteEvent[i].meetingId.likes.length;
+        obj.favorites = favoriteEvent[i].meetingId.favorites.length;
+        obj.rating = favoriteEvent[i].meetingId.ratingCalculated;
+        obj.views = favoriteEvent[i].meetingId.view.length;
+        obj.participants = favoriteEvent[i].meetingId.participants.length;
 
         resultFavorite.push(obj);
       }
@@ -224,7 +244,7 @@ const meetingController = {
         type: "impression",
         message: `Пользователь ${user.name} поделился впечатлением о встрече ${meetingDb.name}.`,
         meeting: meeting_id,
-        categoryIcon: meetingDb.category.avatar, //sarqel
+        // categoryIcon: meetingDb.category.avatar, //sarqel
         link: evLink,
       };
       const nt = new Notification(dataNotif);
@@ -237,7 +257,7 @@ const meetingController = {
             type: "impression",
             date_time: moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm"),
             message: `Пользователь ${user.name} поделился впечатлением о встрече ${meetingDb.name}.`,
-            categoryIcon: meetingDb.category.avatar, //sarqel
+            // categoryIcon: meetingDb.category.avatar, //sarqel
             link: evLink,
           })
         );
@@ -344,6 +364,7 @@ const meetingController = {
       longitude,
       latitude
     );
+
     return res.status(200).send(result);
   },
   deleteCommentAnswer: async (req, res) => {
@@ -368,9 +389,8 @@ const meetingController = {
     const authHeader = req.headers.authorization;
     const token = authHeader.split(" ")[1];
     const user = jwt.decode(token);
-    // const user={id:"656ecb2e923c5a66768f4cd5"}
-    const { meetingId, rating } = req.body;
-    const result = await meetingService.addRating(user.id, meetingId, rating);
+    const { id, rating } = req.body;
+    const result = await meetingService.addRating(user.id, id, rating);
     return res.status(200).send(result);
   },
   deleteComment: async (req, res) => {
@@ -430,7 +450,18 @@ const meetingController = {
       .findById(id)
       .populate({ path: "user", select: "-password" })
       .populate("images")
-      .populate("participants");
+      .populate({
+        path: "participants",
+        populate: { path: "user", select: "name avatar surname" },
+      })
+      .populate({
+        path: "participantSpot",
+        populate: { path: "user", select: "name avatar surname" },
+      })
+      .populate({
+        path: "view",
+        populate: { path: "user", select: "name avatar surname" },
+      });
     const template = "profile/meeting-show";
     const favorites = await meetingFavorit.find({
       user: meeting.user._id,
@@ -440,14 +471,15 @@ const meetingController = {
       .find({ meetingId: meeting.id })
       .populate({ path: "user", select: "-password" })
       .populate("likes");
-
+    const participants = meeting.participants;
     res.render(template, {
       layout: "profile",
-      title: "Verification",
+      title: "Meeting Show",
       user: req.user,
       event: meeting,
       images: meeting.images,
-      paricipants: meeting.participants,
+      participants,
+      participantSpot: meeting.participantSpot,
       paricipantsLength: meeting.participants.length,
       views: meeting.view,
       likes: meeting.likes.length,
@@ -613,7 +645,6 @@ const meetingController = {
 
       const user = jwt.decode(token);
       const { id } = req.body;
-      // const user = { id: "656ecb2e923c5a66768f4cd3" };
 
       const result = await meetingService.favorit(user.id, id);
       res.status(200).send(result);
@@ -1056,7 +1087,14 @@ const meetingController = {
     if (!name && !date_from) {
       meetingsRes = await meetingModel.find().populate("user");
     }
+    meetingsRes.sort((a, b) => {
 
+      return (
+        moment(b.createdAt).format("YYYY-MM-DD HH:MM") -
+        moment(a.createdAt).format("YYYY-MM-DD HH:MM")
+      );
+    });
+    meetingsRes.reverse()
     res.render("profile/meeting", {
       layout: "profile",
       title: "Meeting",

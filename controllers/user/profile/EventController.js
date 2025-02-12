@@ -64,7 +64,9 @@ class EventController {
       await Event.findByIdAndUpdate(separatedEvents.passed[i]._id,{$set:{situation:"passed"}})
     }
     let eventsRes = await this.EventService.get(params);
-    
+    eventsRes.sort((a, b) => moment(a.createdAt).valueOf() - moment(b.createdAt).valueOf());
+    eventsRes.reverse()
+     
     res.render("profile/event", {
       layout: "profile",
       title: "Event",
@@ -251,12 +253,17 @@ class EventController {
 
   show = async (req, res) => {
     const event = await this.EventService.getById(req.params.id);
+    
+    const participants=event.participants
+    const views=event.views
     res.render("profile/event-show", {
       layout: "profile",
       title: "Event View",
       user: req.user,
       event,
       q: req.query,
+      participants,
+      views
     });
   };
 }

@@ -201,7 +201,7 @@ const servicesController = {
       );
     }
 
-    res.status(200).send({ success: true, data: availableTimes });
+    res.status(200).send({ success: true,message:"success", data: availableTimes });
   },
   times: async (req, res) => {
     const { serviceId, today } = req.query;

@@ -30,6 +30,18 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+app.set("etag", false);
+
+// Disable Last-Modified header
+app.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store"); // Prevent caching
+  res.setHeader("Pragma", "no-cache"); // Older browsers
+  res.removeHeader("Last-Modified"); // Remove the last-modified header
+  next();
+});
+
+
 expressWs(app);
 const hbs = create({
   defaultLayout: "main",

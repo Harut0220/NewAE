@@ -171,6 +171,13 @@
               </a>
             </li>
             <li>
+              <img
+                src="/images/staticimg/rubl.svg"
+                class="menuIconImg"
+              /><a href="/admin/profile/company/price/page" class="pages_link">Комиссия
+              </a>
+            </li>
+            <li>
               <img src="/images/staticimg/Group.svg" class="menuIconImg" />
               <a
                 href="/report"
@@ -229,23 +236,11 @@
     <script src="/public/js/admin-notif.js"></script>
     <script>
 
-      let pages_link = document.querySelectorAll(".pages_link"); for (let pl =0;
-      pl < pages_link.length; pl++) {
-      if(location.href.includes(pages_link[pl].href)){
-      pages_link[pl].classList.add("activeLink") } else
-      if(location.href.includes("events")){
-      pages_link[2].classList.add("activeLink") } else
-      if(location.href.includes("company/page")){
-        pages_link[3].classList.add("activeLink") }else
-      if(location.href.includes("company/pays")){
-        pages_link[4].classList.add("activeLink")
-      }else
-      if(location.href.includes("meeting/page")){
-          pages_link[5].classList.add("activeLink") }else
-      if(location.href.includes("meeting/verify")){
-          pages_link[6].classList.add("activeLink") }else         
-      if(location.href.includes("document/edit")){
-      pages_link[7].classList.add("activeLink") } } 
+      let pages_link = document.querySelectorAll(".pages_link"); 
+      for (let pl =0;pl < pages_link.length; pl++) {
+         if(location.href.includes(pages_link[pl].href)){
+          pages_link[pl].classList.add("activeLink") }
+      }
       let imgsActive=["/images/menuImgActive/Profile.svg",
       "/images/menuImgActive/Kategoria.svg",
       "/images/menuImgActive/sobitya.svg",
@@ -255,8 +250,11 @@
       "/images/menuImgActive/passport-svgrepo-com.svg",
       "/images/menuImgActive/statistika.svg",
       "/images/menuImgActive/notification.svg",
-      "/images/menuImgActive/documenti.svg" ] 
+      "/images/menuImgActive/documenti.svg",
+      "/images/staticimg/rubl.svg",
+      "/images/staticimg/Group.svg" ] 
       let menuIconImg = document.querySelectorAll(".menuIconImg"); 
+      console.log(pages_link.length,"pages_link.length")
       for(let i=0;i<pages_link.length-1;i++){
       if(pages_link[i].getAttribute("class")=="pages_link activeLink"){
       menuIconImg[i].src=imgsActive[i] } }

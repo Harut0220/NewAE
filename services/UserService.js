@@ -156,13 +156,21 @@ class UserService {
       await user.updateOne({ block: !user.block });
       await user.save();
       console.log("block or unblock");
-
-      // await transporter.sendMail({
-      //   from: process.env.MAIL_USERNAME,
-      //   to: user.email,
-      //   subject: "Hello",
-      //   template: "confirm-user",
-      // });
+      if (user.block) {
+        await transporter.sendMail({
+          from: process.env.MAIL_USERNAME,
+          to: user.email,
+          subject: "Hello",
+          template: "confirm-user",
+        });
+      } else {
+        await transporter.sendMail({
+          from: process.env.MAIL_USERNAME,
+          to: user.email,
+          subject: "Hello",
+          template: "block-user",
+        });
+      }
 
       return user;
     } catch (error) {

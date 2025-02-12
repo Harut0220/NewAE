@@ -247,6 +247,8 @@ const meetingService = {
   },
   meetings: async (authHeader, longitude, latitude) => {
     if (authHeader && longitude && latitude) {
+      console.log(authHeader,"token");
+      
       const token = authHeader.split(" ")[1];
       const userToken = jwt.decode(token);
       const user = userToken.id;
@@ -275,8 +277,11 @@ const meetingService = {
 
         return distance;
       }
+      // const userDb=await User.findById(user.id)
+      // console.log(userDb,"userDb");
+      
       const meetings = await meetingModel
-        .find({ user: { $ne: user.id }, status: { $eq: 1 } })
+        .find({ user: { $ne: user }, status: { $eq: 1 } })
         .populate({ path: "user", select: "-password" })
         .populate("participants")
         .populate("images")
@@ -297,23 +302,7 @@ const meetingService = {
           ],
         })
         .exec();
-      // for (let i = 0; i < meetings.length; i++) {
-      //   const isRating = await meetingRating.findOne({
-      //     meetingId: meetings[i]._id,
-      //     user: user,
-      //   });
-      //   meetings[i].isRating = isRating ? true : false;
-      //   const findLike = await meetingLikes.findOne({
-      //     meetingId: meetings[i]._id,
-      //     user: user,
-      //   });
-      //   meetings[i].isLike = findLike ? true : false;
-      //   const findFavorite = await meetingFavorit.findOne({
-      //     meetingId: meetings[i]._id,
-      //     user: user,
-      //   });
-      //   meetings[i].isFavorite = findFavorite ? true : false;
-      // }
+
       function separateUpcomingAndPassed(events) {
         const now = new Date();
         const upcoming = [];
@@ -336,7 +325,6 @@ const meetingService = {
         (event) => event.status === 1
       );
       separatedEvents.upcoming.forEach((meeting) => {
-        
         meeting.kilometr = calculateDistance(
           myLatitude,
           myLongitude,
@@ -366,8 +354,6 @@ const meetingService = {
           user,
         });
         if (findParticipant) {
-          console.log("findParticipant 2", findParticipant);
-
           element.joinStatus = 2;
         }
 
@@ -376,8 +362,6 @@ const meetingService = {
           user,
         });
         if (findParticipantSpot) {
-          console.log("findParticipantSpot 3", findParticipantSpot);
-
           element.joinStatus = 3;
         }
 
@@ -397,6 +381,7 @@ const meetingService = {
         });
         element.isFavorite = findFavorite ? true : false;
       }
+      
       return {
         message: "success",
         upcoming: separatedEvents.upcoming,
@@ -457,7 +442,6 @@ const meetingService = {
           if (
             event.date > moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm")
           ) {
-
             upcoming.push(event);
           } else {
             passed.push(event);
@@ -597,7 +581,6 @@ const meetingService = {
         if (differenceInMinutes > 0 && differenceInMinutes <= 60) {
           element.hour = true;
         }
-        
       }
       return {
         message: "success",
@@ -606,8 +589,8 @@ const meetingService = {
       };
     } else if (
       authHeader &&
-      longitude === "undefined" &&
-      latitude === "undefined"
+      longitude &&
+      latitude
     ) {
       const token = authHeader.split(" ")[1];
       const user = jwt.decode(token);
@@ -724,10 +707,7 @@ const meetingService = {
           meetingId: element._id,
           user: user.id,
         });
-        console.log("findParticipant 1", findParticipant);
         if (findParticipant) {
-          console.log("findParticipant 2", findParticipant);
-
           element.joinStatus = 2;
         }
 
@@ -735,11 +715,8 @@ const meetingService = {
           meetingId: element._id,
           user: user.id,
         });
-        console.log("findParticipantSpot 1", findParticipantSpot);
 
         if (findParticipantSpot) {
-          console.log("findParticipant 3", findParticipant);
-
           element.joinStatus = 3;
         }
         const isRating = await meetingRating.findOne({
@@ -758,6 +735,7 @@ const meetingService = {
         });
         element.isFavorite = findFavorite ? true : false;
       }
+      
       return {
         message: "success",
         upcoming: separatedEvents.upcoming,
@@ -814,6 +792,7 @@ const meetingService = {
     }
   },
   addRating: async (user, meetingId, rating) => {
+    
     const ratingIf = await meetingRating.find({ user, meetingId });
     if (!ratingIf.length) {
       const date = moment.tz(process.env.TZ).format("YYYY-MM-DD HH:mm:ss");
@@ -874,8 +853,9 @@ const meetingService = {
         });
         await meetingImpression.save();
       }
-
-      return { message: "Рейтинг добавлен", averageRating };
+      const updatedMeeting=await meetingModel.findById(meetingId).select("ratings")
+      const ratings=updatedMeeting.ratings
+      return { message: "Рейтинг добавлен",ratings, averageRating };
     } else {
       return { message: "Рейтинг уже добавлен" };
     }
@@ -906,7 +886,9 @@ const meetingService = {
       date,
     });
     await commentAnswerDb.save();
-    const answerDb=await meetingCommentAnswer.findById(commentAnswerDb._id).populate('user')
+    const answerDb = await meetingCommentAnswer
+      .findById(commentAnswerDb._id)
+      .populate("user");
     const commentDb = await meetingComment.findByIdAndUpdate(
       commentId,
       { $push: { answer: commentAnswerDb._id } },
@@ -1005,45 +987,41 @@ const meetingService = {
         ],
       })
       .exec();
-      const isRating = await meetingRating.findOne({
-        meetingId: resultChanged1._id,
+    const isRating = await meetingRating.findOne({
+      meetingId: resultChanged1._id,
+      user: user,
+    });
+    resultChanged1.isRating = isRating ? true : false;
+    const findLike = await meetingLikes.findOne({
+      meetingId: resultChanged1._id,
+      user: user,
+    });
+    resultChanged1.isLike = findLike ? true : false;
+    const findFavorite = await meetingFavorit.findOne({
+      meetingId: resultChanged1._id,
+      user: user,
+    });
+    resultChanged1.isFavorite = findFavorite ? true : false;
+
+    for (let i = 0; i < resultChanged1.comments.length; i++) {
+      const findCommentLike = await meetingCommentLikes.findOne({
+        commentId: resultChanged1.comments[i]._id,
         user: user,
       });
-      resultChanged1.isRating = isRating ? true : false;
-      const findLike = await meetingLikes.findOne({
-        meetingId: resultChanged1._id,
-        user: user,
-      });
-      resultChanged1.isLike = findLike ? true : false;
-      const findFavorite = await meetingFavorit.findOne({
-        meetingId: resultChanged1._id,
-        user: user,
-      });
-      resultChanged1.isFavorite = findFavorite ? true : false;
-    
-      for (let i = 0; i < resultChanged1.comments.length; i++) {
-        
-        const findCommentLike = await meetingCommentLikes.findOne({
-          commentId: resultChanged1.comments[i]._id,
+      for (let z = 0; z < resultChanged1.comments[i].answer.length; z++) {
+        const findAnswerLike = await AnswerLikes.findOne({
+          answerId: resultChanged1.comments[i].answer[z]._id,
           user: user,
         });
-        for (let z = 0; z < resultChanged1.comments[i].answer.length; z++) {
-          const findAnswerLike = await AnswerLikes.findOne({
-            answerId: resultChanged1.comments[i].answer[z]._id,
-            user: user,
-          });
-          if (findAnswerLike) {
-            resultChanged1.comments[i].answer[z].isLike = true;
-          }
-        }
-        
-        if (findCommentLike) {
-          
-          resultChanged1.comments[i].isLike = true;
+        if (findAnswerLike) {
+          resultChanged1.comments[i].answer[z].isLike = true;
         }
       }
 
-
+      if (findCommentLike) {
+        resultChanged1.comments[i].isLike = true;
+      }
+    }
 
     return resultChanged1;
   },
@@ -1820,7 +1798,9 @@ const meetingService = {
         date: moment.tz(process.env.TZ).format(),
       });
       await commentDb.save();
-      const commDb=await meetingComment.findById(commentDb._id).populate('user')
+      const commDb = await meetingComment
+        .findById(commentDb._id)
+        .populate("user");
       const meetingUpdate = await meetingModel.findByIdAndUpdate(meetingId, {
         $push: { comments: commentDb._id },
       });
@@ -1944,8 +1924,8 @@ const meetingService = {
           });
           await viewDb.save();
           resultChanged1 = await meetingModel
-            .findOneAndUpdate(
-              { _id: id },
+            .findByIdAndUpdate(
+              id,
               {
                 $push: { view: viewDb._id },
                 $set: { ratingCalculated: averageRating },
@@ -1955,6 +1935,10 @@ const meetingService = {
             .populate({ path: "user", select: "-password" })
             .populate("participants")
             .populate("likes")
+            .populate({
+              path: "impression_images",
+              populate: { path: "user", select: "name surname avatar" },
+            })
             .populate("images")
             .populate("participantSpot")
             .populate("view")
@@ -1985,6 +1969,10 @@ const meetingService = {
             )
             .populate({ path: "user", select: "-password" })
             .populate("participants")
+            .populate({
+              path: "impression_images",
+              populate: { path: "user", select: "name surname avatar" },
+            })
             .populate("likes")
             .populate("images")
             .populate("participantSpot")
@@ -2048,7 +2036,6 @@ const meetingService = {
         resultChanged1.isFavorite = findFavorite ? true : false;
 
         for (let i = 0; i < resultChanged1.comments.length; i++) {
-          
           const findCommentLike = await meetingCommentLikes.findOne({
             commentId: resultChanged1.comments[i]._id,
             user: user,
@@ -2062,17 +2049,19 @@ const meetingService = {
               resultChanged1.comments[i].answer[z].isLike = true;
             }
           }
-          
+
           if (findCommentLike) {
-            
             resultChanged1.comments[i].isLike = true;
           }
         }
-
       } else {
         // let resultChanged1;
         const resDb = await meetingModel
           .findById(id)
+          .populate({
+            path: "impression_images",
+            populate: { path: "user", select: "name surname avatar" },
+          })
           .populate({
             path: "comments",
             populate: [
@@ -2107,6 +2096,10 @@ const meetingService = {
           .populate("participants")
           .populate("likes")
           .populate("images")
+          .populate({
+            path: "impression_images",
+            populate: { path: "user", select: "name surname avatar" },
+          })
           .populate("participantSpot")
           .populate("view")
           .populate("favorites")

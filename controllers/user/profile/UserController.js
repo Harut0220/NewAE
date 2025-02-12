@@ -196,7 +196,8 @@ class UserController {
 
   block = async (req, res) => {
     let user = await this.UserService.blockOrUnblock(req.params.id);
-
+    console.log(user.block,"user");
+    
     let msg = "Ваш аккаунт заблокирован администратором";
     if (user.block == 1) {
       msg = "Ваш аккаунт разблокирован администратором";

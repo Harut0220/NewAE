@@ -73,7 +73,7 @@
                 </thead>
                 <tbody id="tbody1">
                     {{#if meetings}}
-                      {{#optionsMeetingArrays meetings "_id" "purpose" "user" "address" "openDate" "openTime" "date"  "status" "likes" "situation"}}
+                      {{#optionsMeetingArrays meetings "_id" "purpose" "user" "address" "openDate" "openTime" "date"  "status" "ratingCalculated" "situation"}}
                          <tr>
                           <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>
                               <input type="checkbox" style="text-align: center; width: 16px; height: 16px;" name="des_events" value="{{id}}">
@@ -92,7 +92,7 @@
                           {{!-- <td class="td">{{openDate}}-{{openTime}}</td> --}}
                           <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{startDate}}</td>
                           <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>{{address}}</td>
-                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes.length}}</td>
+                          <td class="td" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}><img style="margin-bottom:-2px;margin-right:8px" src="/images/staticimg/heart.svg">{{likes}}</td>
                           <td class="td" style="text-align:center;" {{#if (and (eq situation "passed") (eq status 0))}} style="color: #e5e8e3;"{{else if (eq status 0)}} style="color: #59d815;"{{else if (and (eq situation "upcoming") (eq status 0))}}style="color: #59d815;"{{else if (eq status 2)}}style="color: red;"{{/if}}>
                             {{#if (notEq situation "passed") }}
                               <a href="/admin/profile/meet/single/{{id}}" style="display: flex;align-items: center;justify-content: center;">

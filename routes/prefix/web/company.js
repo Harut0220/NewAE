@@ -38,6 +38,10 @@ companyAdminRouter.get("/page",companyController.index);
 
 companyAdminRouter.get("/pays/:id",companyController.pays);
 
+companyAdminRouter.get("/price/page",companyController.pricePage)
+
+companyAdminRouter.post("/commission/edit/:id",isEmpParamObjId,companyController.priceEdit)
+
 
 
 export default companyAdminRouter

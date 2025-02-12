@@ -169,17 +169,18 @@
           >
             <p id="p1" class="p1">Пришли на событие: {{event.participants.length}}</p>
             <div id="photos" class="clients">
-              {{#each event.participants }}
+              {{#each participants }}
+              
               <div class="visiter">
-                <img src="/{{avatar}}" />
-                <div class="name">{{name}}</div>
+                <img src="/{{getValue user "avatar"}}" />
+                <div class="name">{{getValue user "name"}} {{getValue user "surname"}}</div>
               </div>
               {{/each}}
               <p class="p1" id="p10">Собирались посетить: {{event.views.length}}</p>
-              {{#each event.views}}
+              {{#each views}}
               <div class="visiter">
-                <img src="/{{avatar}}" />
-                <div class="name">{{name}}</div>
+                <img src="/{{getValue user "avatar"}}" />
+                <div class="name">{{getValue user "name"}} {{getValue user "surname"}}</div>
               </div>
               {{/each}}
             </div>

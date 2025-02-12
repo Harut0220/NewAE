@@ -42,7 +42,7 @@ reedRouter.get("/document/:cssFile",(req,res)=>{
   }
 })
 
-reedRouter.get("/Public/:json",(req,res)=>{
+reedRouter.get("/Publice/:json",(req,res)=>{
   try {
     const image = req.params.json;
     const imagePath = path.join(__dirname,"..", "views", image);
@@ -216,7 +216,7 @@ reedRouter.get('/uploads/:image',(req,res)=>{
   // console.log(imagePath);
   // Check if the file exists
   if (imageCategory && imagePath) {
-    res.sendFile(imagePath);
+    res.status(200).sendFile(imagePath);
   } else {
     res.status(404).send("Image not found");
   }

@@ -144,5 +144,4 @@ profileRoutes.post("/meet/edit/:id",isEmpParamObjId,meetingController.edite)
 // profileRoutes.post("/meet/image/delete/:id",meetingController.destroyImage)
 
 
-
 export { profileRoutes };

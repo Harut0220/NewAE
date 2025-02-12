@@ -202,14 +202,22 @@ class EventService {
         "owner",
         "ratings",
         "impression_images",
-        "participants",
         "likes",
         "favorites",
-        "views",
         {
           path: "comments",
           populate: { path: "user" },
         },
+        {
+          path:"participants",
+          populate:{path:"user",select:"name avatar surname"},
+          // select:{"name"}
+        },
+        {
+          path:"views",
+          populate:{path:"user",select:"name avatar surname"},
+          // select:{"name"}
+        }
       ])
       .lean();
   };

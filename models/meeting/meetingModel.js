@@ -24,7 +24,7 @@ const Meeting = new Schema(
     ratingCalculated: { type: Number, default: 0},
     favorites: [{ type: Schema.Types.ObjectId, ref: "meeting_favorites" }],
     statusMeeting: { type: String, default: "null" },
-    hour: { type: Boolean, required: false },
+    hour: { type: Boolean, default: false },
     impression_images: [
       {
         type: mongoose.Schema.ObjectId,

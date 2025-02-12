@@ -128,7 +128,7 @@
             <div id="photos" class="photos">
               {{#imagesFromMeeting images "_id" "path"}}
               <div class="emptyPhotosImg">
-                <img src="http://localhost:3000/{{ path }}" class="img" />
+                <img src="/{{ path }}" class="img" />
               </div>
               {{/imagesFromMeeting}}
             </div>
@@ -143,7 +143,7 @@
               {{#ArrayFromComments comments "text" "date" "user" "likes"}}
               <div class="comment-box">
                 <div class="content">
-                  <img src="http://localhost:3000/{{getValue user "avatar"}}"  width="50px" height="50px" style="border-radius: 100px;" />
+                  <img src="/{{getValue user "avatar"}}"  width="50px" height="50px" style="border-radius: 100px;" />
                   <div class="c">
                     <div class="b">
                       <p class="text">{{getValue user "name"}} {{getValue user "surname"}}</p>
@@ -170,21 +170,22 @@
             class="allEvBoxCont ChangedAllEvBoxCont"
             style="overflow-y: hidden"
           >
-            <p id="p1" class="p1">Собирались посетить: {{paricipantsLength}}</p>
+            <p id="p1" class="p1">Пришли на событие: {{paricipantsLength}}</p>
             <div id="photos" class="clients">
-              {{#ArrayFromComments paricipants "_id" "name" "surname" "avatar"}}
+              {{#participantsArray participants "user"}}
               <div class="visiter">
-                <img src="http://localhost:3000/{{likes}}" />
-                <div class="name">{{date}} {{user}}</div>
+                <img src="/{{getValue user "avatar"}}" />
+                <div class="name">{{getValue user "name"}} {{getValue user "surname"}}</div>
               </div>
-              {{/ArrayFromComments}}
-              {{!-- <p class="p1" id="p10">Пришли на событие : {{event.views.length}}</p>
-              {{#each paricipants}}
+              {{/participantsArray}}
+              <p class="p1" id="p10">Собирались посетить: {{views.length}}</p>
+              {{#participantsArray views "user"}}
               <div class="visiter">
-                <img src="http://localhost:3000/{{avatar}}" />
-                <div class="name">{{name}}</div>
+                <img src="/{{getValue user "avatar"}}" />
+                <div class="name">{{getValue user "name"}} {{getValue user "surname"}}</div>
               </div>
-              {{/each}} --}}
+              {{/participantsArray}}
+
             </div>
           </div>
         </div>
