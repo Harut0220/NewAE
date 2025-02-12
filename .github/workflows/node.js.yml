@@ -26,10 +26,27 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: npm i
+    - name: Install Dependencies
+      run: npm install
+
     - name: Install PM2
       run: npm install -g pm2
+  
+    - name: Stop and Delete Existing PM2 Process
+      run: pm2 delete index || true  # Prevents failure if process does not exist
+  
+    - name: Start Application with PM2
+      run: pm2 start index.js --name index
+  
+    - name: Save PM2 Process List
+      run: pm2 save
+  
+    - name: Ensure PM2 Runs on Reboot
+      run: pm2 startup
 
-    - name: Restart App with PM2
-      run: pm2 start index.js --name index || pm2 restart index
+    - name: Pull Latest Code (Optional if needed)
+      run: |
+        git fetch --all
+        git reset --hard origin/main  # Force updates
+        git pull origin main
 
